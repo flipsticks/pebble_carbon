@@ -38,7 +38,11 @@ class ArcProgressBehavior extends Behavior {
 	}
 
 	onDraw(port, dirtyX, dirtyY, dirtyW, dirtyH) {
-		const r = screen.width / 2; // 90 on gabbro
+		// Use an effective radius/center inset by BAR_THICKNESS/2 so every
+		// BAR_THICKNESS-wide square stays fully within the circular clip.
+		// r = cx = (screen.width - BAR_THICKNESS) / 2  →  88 on gabbro.
+		const r  = (screen.width - BAR_THICKNESS) / 2;
+		const cx = r; // arc center-x = r, arc spans exactly x=0 to x=screen.width-1
 		const progress = this.progress;
 
 		// Iterate over every column in the dirty rect.
@@ -47,13 +51,13 @@ class ArcProgressBehavior extends Behavior {
 
 		// Seed prevArcY from the column just before startX so the first
 		// strip connects seamlessly when drawing a partial dirty rect.
-		const prevDx0 = (startX - 1) - r;
+		const prevDx0 = (startX - 1) - cx;
 		let prevArcY = startX > 0
 			? Math.round(r + Math.sqrt(Math.max(0, r * r - prevDx0 * prevDx0)))
 			: null;
 
 		for (let px = startX; px < endX; px++) {
-			const dx   = px - r;
+			const dx   = px - cx;
 			const arcY = Math.round(r + Math.sqrt(Math.max(0, r * r - dx * dx)));
 
 			// Bridge the vertical gap to the previous column:
