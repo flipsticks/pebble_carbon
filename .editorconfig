@@ -13,3 +13,8 @@ trim_trailing_whitespace = true
 [{*.yml,.*rc}]
 indent_style = space
 indent_size = 2
+
+# Build process keeps changing package.json back to spaces
+[package.json]
+indent_style = space
+indent_size = 2
