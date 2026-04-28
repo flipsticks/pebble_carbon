@@ -1,12 +1,8 @@
-import icons from "icons";
+import icons, { IconLabel } from "icons";
+import assets from "assets";
 
-// ---------------------------------------------------------------------------
-// Skins & styles
-// ---------------------------------------------------------------------------
-
-const blackSkin = new Skin({ fill: "black" });
-const timeStyle = new Style({ font: "black 30px Bitham", color: "white" });
-const iconStyle = new Style({ font: "20px IcoMoon", color: "white" });
+const blackSkin = new Skin(assets.skins.black);
+const timeStyle = new Style(assets.styles.time);
 
 // ---------------------------------------------------------------------------
 // Behaviors
@@ -59,7 +55,7 @@ const CarbonApplication = Application.template($ => ({
 				Row($, {
 					left: 0, right: 0,
 					contents: TEST_ICONS.map(char =>
-						Label($, { style: iconStyle, string: char })
+						IconLabel($, { string: char })
 					),
 				}),
 			],

@@ -8,20 +8,12 @@ Inspired by [Graphite](https://github.com/stefanheule/graphite) by Stefan Heule.
 
 ---
 
-## Dev Environment Setup
+## Development
 
 ### Prerequisites
 
 - [Pebble SDK](https://developer.repebble.com/sdk/) (includes the `pebble` CLI tool)
 - [Node.js](https://nodejs.org) (for PKJS dependencies)
-
-If you want to be able to run the watchface on your device, you'll also want to log in with GitHub after installing the Pebble SDK:
-
-```sh
-pebble login
-```
-
-This will enable the `install` npm script.
 
 ### Install dependencies
 
@@ -43,24 +35,45 @@ npm run emulator:gabbro
 
 ### Install on your device
 
+If you want to be able to run the watchface on your device, you'll also want to log in with GitHub after installing the Pebble SDK:
+
 ```sh
-npm run install
+pebble login
 ```
 
----
+This will enable the `device` npm script:
 
-## Project Structure
+```sh
+npm run device
+```
+
+### Project Structure
 
 ```
+scripts/           # Build/util scripts (e.g. icon codepoint generation)
 src/
   embeddedjs/      # Watch-side JavaScript (runs on device)
-    assets/        # Fonts, icons, and other resources
-    main.ts        # Entry point
+    assets/        # Fonts and other static resources
+    modules/       # Shared non-widget modules (icons, weather, settings, etc.)
     widgets/       # Modular widget components
+    main.js        # Entry point
+    assets.js      # Shared asset config (fonts, skins, styles)
   pkjs/
     index.js       # Phone-side proxy + Clay settings init
     config.js      # Clay settings configuration
 ```
+
+### Icons
+
+Icons are included as a custom font generated from [IcoMoon](https://icomoon.io/). The `src/embeddedjs/assets/icons.icomoon.json` file can be imported into IcoMoon to edit the icon set. When icons are added, removed, or rearranged, the font and selection JSON file must be re-exported from IcoMoon (with font family set to "IcoMoon"), and the codepoints file must be regenerated.
+
+Move the downloaded TTF font file to `src/embeddedjs/assets/IcoMoon-Regular.ttf` (the `-Regular` suffix is important!) and the JSON selection file to `src/embeddedjs/assets/icons.icomoon.json`, then run:
+
+```sh
+npm run gen-icons
+```
+
+This will update `src/embeddedjs/modules/icons/codepoints.js` with the new codepoint mapping. The icons module re-exports this mapping as its default export, so any changes will be reflected in the watchface immediately (or you'll get a runtime error if a codepoint is missing or the file is otherwise malformed).
 
 ---
 

@@ -30,6 +30,7 @@
     }
   },
   "scripts": {
+    "gen-icons": "node scripts/gen-icons.js",
     "build": "pebble build",
     "emulator:emery": "pebble install --emulator emery --logs",
     "emulator:gabbro": "pebble install --emulator gabbro --logs",

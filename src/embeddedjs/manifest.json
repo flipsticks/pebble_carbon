@@ -4,9 +4,11 @@
 		"$(MODDABLE)/examples/manifest_typings.json"
 	],
 	"modules": {
+		"icons": "./modules/icons",
+		"icons/codepoints": "./modules/icons/codepoints",
 		"*": [
 			"./main",
-			"./icons"
+			"./assets"
 		]
 	},
 	"resources": {
