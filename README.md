@@ -75,6 +75,45 @@ npm run gen-icons
 
 This will update `src/embeddedjs/modules/icons/codepoints.js` with the new codepoint mapping. The icons module re-exports this mapping as its default export, so any changes will be reflected in the watchface immediately (or you'll get a runtime error if a codepoint is missing or the file is otherwise malformed).
 
+### Troubleshooting
+
+#### Module specifiers must exactly match manifest keys
+
+The Moddable/mcrun build does **not** validate import specifiers at compile time. Mismatches only surface at runtime as `SyntaxError: import default not found` (module found but no default export) or a silent failure.
+
+**Rule:** The string in `import X from "..."` must exactly match a key in
+`src/embeddedjs/manifest.json` under `modules`.
+
+There are two ways a module can be declared:
+
+```jsonc
+// manifest.json
+{
+  "modules": {
+    // Named key — import from "icons", NOT "modules/icons"
+    "icons": "./modules/icons",
+
+    // Wildcard array — import specifier is the path stripped of "./" and ".js"
+    // e.g. "./assets" → import from "assets"
+    //      "./modules/foo" → import from "modules/foo"
+    "*": [
+      "./main",
+      "./assets"
+    ]
+  }
+}
+```
+
+When in doubt, grep the manifest for the key and make sure your import string matches it literally.
+
+#### Build environment: settings.json
+
+If `npm run build` fails with `json.decoder.JSONDecodeError: Expecting value`, the Pebble SDK config file has been zeroed out (for some reason?). Fix with:
+
+```sh
+echo '{}' > ~/Library/Application\ Support/Pebble\ SDK/settings.json
+```
+
 ---
 
 ## License
