@@ -7,11 +7,11 @@
  * @link      https://cr0ybot.com/project/pebble-watchface-carbon
  */
 
-import icons, { IconLabel } from "icons";
 import assets from "assets";
+import ClockLabel from "clock";
+import icons, { IconLabel } from "icons";
 
 const blackSkin = new Skin(assets.skins.black);
-const timeStyle = new Style(assets.styles.time);
 
 const TEST_ICONS = [
 	icons.sun,
@@ -25,19 +25,17 @@ const TEST_ICONS = [
 // Behaviors
 //
 
-class CarbonBehavior {
-	onDisplaying(application) {
-		const now = new Date();
-		application.distribute("onClockChanged", { date: now });
+/**
+ * Application behavior.
+ *
+ * Listens for `minutechange` events and updates the time.
+ */
+class CarbonBehavior extends Behavior {
+	onCreate(app, data) {
+		this.data = data;
 		watch.addEventListener("minutechange", (e) => {
-			application.distribute("onClockChanged", e);
+			app.distribute("onClockChanged", e.date);
 		});
-	}
-	onClockChanged(application, clock) {
-		const date = clock.date;
-		const h = String(date.getHours()).padStart(2, "0");
-		const m = String(date.getMinutes()).padStart(2, "0");
-		application.first.first.string = `${h}:${m}`;
 	}
 }
 
@@ -52,10 +50,8 @@ const CarbonApplication = Application.template($ => ({
 		Column($, {
 			top: 0, bottom: 0, left: 0, right: 0,
 			contents: [
-				Label($, {
+				ClockLabel($, {
 					left: 0, right: 0,
-					style: timeStyle,
-					string: "00:00",
 				}),
 				Row($, {
 					left: 0, right: 0,
