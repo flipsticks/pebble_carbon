@@ -14,24 +14,30 @@
  * @link      https://cr0ybot.com/project/pebble-watchface-carbon
  */
 
-import { IconLabel,
-	battery, batteryCharging, batteryFull, batteryMedium, batteryLow, batteryWarning,
-} from "modules/icons";
+import Battery from "embedded:sensor/Battery";
+import { IconLabel } from "modules/icons";
+import { battery, batteryCharging, batteryFull, batteryMedium, batteryLow, batteryWarning } from "modules/icons/library";
 
-function batteryIcon(state) {
-	if (state.charging)     return batteryCharging;
-	if (state.percent > 80) return batteryFull;
-	if (state.percent > 40) return batteryMedium;
-	if (state.percent > 20) return batteryLow;
+console.log("Battery widget loaded");
+
+function batteryIcon(sample) {
+	if (sample.charging)     return batteryCharging;
+	if (sample.percent > 80) return batteryFull;
+	if (sample.percent > 40) return batteryMedium;
+	if (sample.percent > 20) return batteryLow;
 	return batteryWarning;
 }
 
 class BatteryBehavior extends Behavior {
 	onCreate(label, data) {
-		label.string = batteryIcon(watch.battery);
-		watch.battery.addEventListener("change", (e) => {
-			label.string = batteryIcon(e);
+		this.sensor = new Battery({
+			onSample() {
+				label.string = batteryIcon(this.sample());
+			},
 		});
+		const initial = this.sensor.sample();
+		console.log("battery sample:", initial.percent, initial.charging);
+		label.string = batteryIcon(initial);
 	}
 }
 
