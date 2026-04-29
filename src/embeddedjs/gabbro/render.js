@@ -22,20 +22,8 @@ import BottomWidgetBar from "modules/bottom-widget-bar";
 import PrecipGraph from "modules/precip-graph";
 import ProgressBar from "modules/progress-bar";
 
-//
-// Clock centering
-//
-
-// Measured combined height of ClockLabel + DateLabel with current fonts.
-// Increase to move the clock up (reduces TIME_OFFSET).
-const CLOCK_BLOCK_H = 150;
-const TIME_OFFSET   = Math.max(0, Math.floor((layout.center.height - CLOCK_BLOCK_H) / 2));
-// Negative top pulls the date label up into the clock's descender space.
-const DATE_OFFSET   = -8;
-
-//
-// Application contents
-//
+const topWidgetBar    = new TopWidgetBar();
+const bottomWidgetBar = new BottomWidgetBar();
 
 /**
  * Returns the Application contents array for the gabbro platform.
@@ -51,8 +39,8 @@ export function getContents($) {
 		Column($, {
 			top: 0, bottom: 0, left: 0, right: 0,
 			contents: [
-				// Top widget bar (stub — arc-chord layout TBD)
-				TopWidgetBar($, {}),
+				// Top widget bar
+				topWidgetBar.render($.topWidgets),
 				// Precipitation graph
 				PrecipGraph($, {}),
 				// Clock + date
@@ -60,16 +48,16 @@ export function getContents($) {
 					height: layout.center.height, left: 0, right: 0,
 					contents: [
 						Column(null, {
-							top: TIME_OFFSET, left: 0, right: 0,
+							top: layout.clock.timeOffset, left: 0, right: 0,
 							contents: [
 								ClockLabel(null, { left: 0, right: 0 }),
-								DateLabel(null,  { top: DATE_OFFSET, left: 0, right: 0 }),
+								DateLabel(null,  { top: layout.clock.dateOffset, left: 0, right: 0 }),
 							],
 						}),
 					],
 				}),
-				// Bottom widget bar (stub)
-				BottomWidgetBar($, {}),
+				// Bottom widget bar
+				bottomWidgetBar.render($.bottomWidgets),
 			],
 		}),
 	];

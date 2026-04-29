@@ -1,8 +1,9 @@
 /**
- * Gabbro bottom widget bar — STUB
+ * Gabbro bottom widget bar
  *
- * Placeholder until arc-chord slot layout is implemented for the circular
- * screen.  Uses a plain Content sized to the correct height.
+ * Extends WidgetBar with gabbro-specific height and arc-chord inset.  No
+ * background skin (transparent).  Override `render()` here if additional
+ * arc-specific geometry is needed beyond the base left/right inset.
  *
  * @module modules/bottom-widget-bar
  *
@@ -12,11 +13,20 @@
  * @link      https://cr0ybot.com/project/pebble-watchface-carbon
  */
 
+import WidgetBar from "modules/widget-bar";
+import assets from "assets";
 import layout from "layout";
 
-const BottomWidgetBar = Content.template($ => ({
-	height: layout.bottomBar.height,
-	left: 0, right: 0,
-}));
+const bottomBarStyle = new Style(assets.styles.icons);
 
-export default BottomWidgetBar;
+export default class BottomWidgetBar extends WidgetBar {
+	constructor() {
+		const inset = layout.bottomBar.inset;
+		super({
+			height:    layout.bottomBar.height,
+			slotWidth: Math.floor((screen.width - inset * 2) / 4),
+			style:     bottomBarStyle,
+			inset,
+		});
+	}
+}

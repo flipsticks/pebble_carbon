@@ -1,9 +1,8 @@
 /**
  * Emery bottom widget bar
  *
- * Extends WidgetBar with emery-specific height and slot configuration.
- * No background skin (transparent).  Slots are ordered left-to-right:
- *   [0] —  [1] —  [2] —  [3] —
+ * Extends WidgetBar with emery-specific height.  No background skin
+ * (transparent).  Slots are ordered left-to-right: — | — | — | —
  *
  * @module modules/bottom-widget-bar
  *
@@ -13,17 +12,20 @@
  * @link      https://cr0ybot.com/project/pebble-watchface-carbon
  */
 
+import WidgetBar from "modules/widget-bar";
+import assets from "assets";
 import layout from "layout";
-import { makeSlots } from "modules/widget-bar";
 
-const SLOT_HEIGHT = layout.bottomBar.height;
-// 4 equal-width slots across the full bar width.
-const SLOT_WIDTH = Math.floor(screen.width / 4);
+const bottomBarStyle = new Style(assets.styles.icons);
 
-const BottomWidgetBar = Row.template($ => ({
-	height: SLOT_HEIGHT,
-	left: 0, right: 0,
-	contents: makeSlots($.bottomWidgets, SLOT_WIDTH, SLOT_HEIGHT),
-}));
-
-export default BottomWidgetBar;
+export default class BottomWidgetBar extends WidgetBar {
+	constructor() {
+		const inset = layout.bottomBar.inset;
+		super({
+			height:    layout.bottomBar.height,
+			slotWidth: Math.floor((screen.width - inset * 2) / 4),
+			style:     bottomBarStyle,
+			inset,
+		});
+	}
+}

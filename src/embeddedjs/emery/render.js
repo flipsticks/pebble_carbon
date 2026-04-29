@@ -12,38 +12,16 @@
  * @link      https://cr0ybot.com/project/pebble-watchface-carbon
  */
 
-import assets from "assets";
 import layout from "layout";
 import ClockLabel from "modules/clock";
 import DateLabel from "modules/date-label";
+import TopWidgetBar from "modules/top-widget-bar";
+import BottomWidgetBar from "modules/bottom-widget-bar";
 import PrecipGraph from "modules/precip-graph";
 import ProgressBar from "modules/progress-bar";
-import BatteryWidget from "widgets/battery";
-import BluetoothWidget from "widgets/bluetooth";
 
-//
-// Slot geometry
-//
-
-// 4 equal-width slots across the full bar width.
-const SLOT_WIDTH = Math.floor(screen.width / 4);
-
-const topBarSkin = new Skin(assets.skins.topBar);
-
-//
-// Clock centering
-//
-
-// Measured combined height of ClockLabel + DateLabel with current fonts.
-// Increase to move the clock up (reduces TIME_OFFSET).
-const CLOCK_BLOCK_H = 140;
-const TIME_OFFSET   = Math.max(0, Math.floor((layout.center.height - CLOCK_BLOCK_H) / 2));
-// Negative top pulls the date label up into the clock's descender space.
-const DATE_OFFSET   = -8;
-
-//
-// Application contents
-//
+const topWidgetBar    = new TopWidgetBar();
+const bottomWidgetBar = new BottomWidgetBar();
 
 /**
  * Returns the Application contents array for the emery platform.
@@ -58,16 +36,7 @@ export function getContents($) {
 			top: 0, bottom: 0, left: 0, right: 0,
 			contents: [
 				// Top widget bar
-				Row(null, {
-					height: layout.topBar.height, left: 0, right: 0,
-					skin: topBarSkin,
-					contents: [
-						Column(null, { width: SLOT_WIDTH, height: layout.topBar.height, contents: [ BatteryWidget(null, {}) ] }),
-						Column(null, { width: SLOT_WIDTH, height: layout.topBar.height, contents: [ BluetoothWidget(null, {}) ] }),
-						Content(null, { width: SLOT_WIDTH, height: layout.topBar.height }),
-						Content(null, { width: SLOT_WIDTH, height: layout.topBar.height }),
-					],
-				}),
+				topWidgetBar.render($.topWidgets),
 				// Precipitation graph
 				PrecipGraph($, {}),
 				// Clock + date
@@ -75,24 +44,16 @@ export function getContents($) {
 					height: layout.center.height, left: 0, right: 0,
 					contents: [
 						Column(null, {
-							top: TIME_OFFSET, left: 0, right: 0,
+							top: layout.clock.timeOffset, left: 0, right: 0,
 							contents: [
 								ClockLabel(null, { left: 0, right: 0 }),
-								DateLabel(null,  { top: DATE_OFFSET, left: 0, right: 0 }),
+								DateLabel(null,  { top: layout.clock.dateOffset, left: 0, right: 0 }),
 							],
 						}),
 					],
 				}),
 				// Bottom widget bar
-				Row(null, {
-					height: layout.bottomBar.height, left: 0, right: 0,
-					contents: [
-						Content(null, { width: SLOT_WIDTH, height: layout.bottomBar.height }),
-						Content(null, { width: SLOT_WIDTH, height: layout.bottomBar.height }),
-						Content(null, { width: SLOT_WIDTH, height: layout.bottomBar.height }),
-						Content(null, { width: SLOT_WIDTH, height: layout.bottomBar.height }),
-					],
-				}),
+				bottomWidgetBar.render($.bottomWidgets),
 				// Progress bar
 				ProgressBar($, {}),
 			],

@@ -41,6 +41,9 @@ const CENTER_HEIGHT = screen.height - TOP_BAR_HEIGHT - PRECIP_HEIGHT - BOTTOM_BA
 
 const BOTTOM_BAR_Y = screen.height - BOTTOM_BAR_HEIGHT;
 
+// Clock centering
+const CLOCK_BLOCK_H = 150;
+
 // Frozen layout constants
 const layout = Object.freeze({
 	isRound: true,
@@ -60,6 +63,11 @@ const layout = Object.freeze({
 	}),
 	progressBar: Object.freeze({
 		height: PROGRESS_HEIGHT,
+	}),
+	clock: Object.freeze({
+		blockHeight: CLOCK_BLOCK_H,
+		timeOffset:  Math.max(0, Math.floor((CENTER_HEIGHT - CLOCK_BLOCK_H) / 2)),
+		dateOffset:  -8,
 	}),
 });
 
