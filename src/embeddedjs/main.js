@@ -13,6 +13,25 @@ import { getContents } from "layout";
 const backgroundSkin = new Skin(assets.skins.background);
 
 //
+// Widget configuration (temporarily hardcoded until settings are implemented)
+//
+
+const widgetConfig = {
+	topWidgets: [
+		{ name: "battery",   config: {} },
+		{ name: "bluetooth", config: {} },
+		null,
+		null,
+	],
+	bottomWidgets: [
+		null,
+		null,
+		null,
+		null,
+	],
+};
+
+//
 // Application behavior
 //
 
@@ -34,7 +53,7 @@ const CarbonApplication = Application.template($ => ({
 	contents: getContents($),
 }));
 
-export default new CarbonApplication(null, {
+export default new CarbonApplication(widgetConfig, {
 	commandListLength: 4096,
 	touchCount: 0,
 	pixels: screen.width * 4,

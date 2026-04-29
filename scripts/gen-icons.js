@@ -25,7 +25,15 @@ const { glyphs } = JSON.parse(readFileSync(SRC, "utf8"));
 const toCamel = s => s.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 
 const entries = glyphs
-	.map(g => `\t${toCamel(g.extras.name)}: String.fromCodePoint(${g.extras.codePoint}),`)
+	.map(g => {
+		const cp = g.extras.codePoint;
+		// All icons are in the BMP Private Use Area (U+E000–U+F8FF), so a
+		// simple \uXXXX escape is always valid.  Using a string literal instead
+		// of String.fromCodePoint() at runtime means XS can bake the strings
+		// into the XSA archive (flash/ROM) rather than allocating them in chunk RAM.
+		const literal = `"\\u${cp.toString(16).toUpperCase().padStart(4, "0")}"`;
+		return `\t${toCamel(g.extras.name)}: ${literal},`;
+	})
 	.join("\n");
 
 const output = `\

@@ -5,6 +5,7 @@
 	],
 	"modules": {
 		"modules/*": "./modules/*",
+		"widgets/*": "./widgets/*",
 		"*": [
 			"./main",
 			"./assets"
@@ -13,13 +14,13 @@
 	"platforms": {
 		"*/emery": {
 			"modules": {
-				"modules/*": "./emery/widgets/*",
+				"modules/*": "./emery/modules/*",
 				"layout": "./emery/layout"
 			}
 		},
 		"*/gabbro": {
 			"modules": {
-				"modules/*": "./gabbro/widgets/*",
+				"modules/*": "./gabbro/modules/*",
 				"layout": "./gabbro/layout"
 			}
 		}

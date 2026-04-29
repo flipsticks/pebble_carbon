@@ -22,7 +22,7 @@ const iconStyle = new Style(assets.styles.icons);
  * Icon codepoints auto-generated from src/embeddedjs/assets/icons.icomoon.json
  * by scripts/gen-icons.js.
  *
- * Usage: import icons from "icons"; then icons.sun, icons.cloudRain, etc.
+ * Usage: import icons from "modules/icons"; then icons.sun, icons.cloudRain, etc.
  */
 export default codepoints;
 

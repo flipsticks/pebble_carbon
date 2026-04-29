@@ -12,44 +12,44 @@
  * @link      https://cr0ybot.com/project/pebble-watchface-carbon
  */
 
-const fonts = {
+const fonts = Object.freeze({
 	time:  "bold 72px Oswald",
 	date:  "bold 24px Gothic",
 	icons: "20px IcoMoon",
-};
+});
 
-const palette = {
-	BLACK: "#000000",
-	DARK_GREY: "#555555",
-	LIGHT_GRAY: "#AAAAAA",
-	WHITE: "#FFFFFF",
+const palette = Object.freeze({
+	BLACK:       "#000000",
+	DARK_GREY:   "#555555",
+	LIGHT_GRAY:  "#AAAAAA",
+	WHITE:       "#FFFFFF",
 	TRANSPARENT: "transparent",
-};
+});
 
-const colors = {
-	background:     palette.BLACK,
-	topBar:         palette.DARK_GREY,
-	graphBackground:palette.BLACK,
-	slotMarker:     palette.LIGHT_GREY,
-	progressTrack:  palette.DARK_GREY,
-	progressFill:   palette.WHITE,
-};
+const colors = Object.freeze({
+	background:      palette.BLACK,
+	topBar:          palette.DARK_GREY,
+	graphBackground: palette.BLACK,
+	slotMarker:      palette.LIGHT_GREY,
+	progressTrack:   palette.DARK_GREY,
+	progressFill:    palette.WHITE,
+});
 
-const assets = {
+const assets = Object.freeze({
 	fonts,
 	palette,
 	colors,
 	skins: {
-		background:   { fill: colors.background },
-		topBar:  { fill: colors.topBar },
-		graph:   { fill: colors.graphBackground },
-		progress: { fill: colors.progressTrack },
+		background: { fill: colors.background },
+		topBar:     { fill: colors.topBar },
+		graph:      { fill: colors.graphBackground },
+		progress:   { fill: colors.progressTrack },
 	},
 	styles: {
 		time:  { color: palette.WHITE, font: fonts.time },
 		date:  { color: palette.WHITE, font: fonts.date },
 		icons: { color: palette.WHITE, font: fonts.icons },
 	},
-};
+});
 
-export default Object.freeze(assets);
+export default assets;

@@ -20,7 +20,8 @@
 
 import ClockLabel from "modules/clock";
 import DateLabel from "modules/date-label";
-import { TopWidgetBar, BottomWidgetBar } from "modules/widget-bar";
+import TopWidgetBar from "modules/top-widget-bar";
+import BottomWidgetBar from "modules/bottom-widget-bar";
 import PrecipGraph from "modules/precip-graph";
 import ProgressBar from "modules/progress-bar";
 
