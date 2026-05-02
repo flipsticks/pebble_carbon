@@ -121,6 +121,7 @@ class WeatherObserver extends LazyObserver {
 	}
 
 	onReadableMessage() {
+		console.log("Received weather message from PKJS");
 		if (!this.message)
 			return;
 
@@ -130,7 +131,7 @@ class WeatherObserver extends LazyObserver {
 
 		const errorCode = data.get("WEATHER_ERROR");
 		if (errorCode && errorCode !== 0) {
-			trace(`Weather PKJS error code: ${errorCode}\n`);
+			console.log(`Weather PKJS error code: ${errorCode}`);
 			return;
 		}
 
@@ -165,15 +166,16 @@ class WeatherObserver extends LazyObserver {
 		};
 
 		const maxPrecip = hourly.reduce((max, value) => (value > max ? value : max), 0);
-		trace(`Hourly precip (next ${hourly.length}h): [${hourly.join(", ")}]\n`);
-		trace(`Hourly precip max: ${maxPrecip}%\n`);
-		trace(`Weather: ${weather.temperature}°F (${weather.temperatureLow}°/${weather.temperatureHigh}°), ${weather.description}\n`);
+		console.log(`Hourly precip (next ${hourly.length}h): [${hourly.join(", ")}]`);
+		console.log(`Hourly precip max: ${maxPrecip}%`);
+		console.log(`Weather: ${weather.temperature}°F (${weather.temperatureLow}°/${weather.temperatureHigh}°), ${weather.description}`);
 
 		this.cacheTime = Date.now();
 		this.publish(weather);
 	}
 
 	requestWeather() {
+		console.log("Requesting weather from PKJS...");
 		if (!this.message || !this.messageWritable)
 			return;
 
@@ -187,13 +189,14 @@ class WeatherObserver extends LazyObserver {
 			this.message.write(new Map([
 				["WEATHER_REQUEST", now & 0x7fffffff],
 			]));
-			trace("Requested weather from PKJS\n");
+			console.log("Requested weather from PKJS");
 		} catch (e) {
-			trace(`Weather request write failed: ${e}\n`);
+			console.log(`Weather request write failed: ${e}`);
 		}
 	}
 
 	ensureMessage() {
+		console.log("Ensuring weather message channel...");
 		if (this.message)
 			return;
 
@@ -214,6 +217,7 @@ class WeatherObserver extends LazyObserver {
 	}
 
 	onStart() {
+		console.log("Starting weather observer...");
 		this.ensureMessage();
 		this.requestWeather();
 
@@ -227,6 +231,11 @@ class WeatherObserver extends LazyObserver {
 	}
 
 	onStop() {
+		console.log("Stopping weather observer...");
+		if (this.message) {
+			this.message.close();
+			this.message = null;
+		}
 		this.messageWritable = false;
 	}
 }

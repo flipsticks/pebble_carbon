@@ -19,10 +19,10 @@
 const moddableProxy = require("@moddable/pebbleproxy");
 
 const WEATHER_BASE_URL = "https://api.open-meteo.com/v1/forecast";
-const USE_TEST_LOCATION = true;
+const USE_TEST_LOCATION = false;
 const TEST_LOCATION = Object.freeze({
-	latitude: 30.4369293,
-	longitude: -87.3490913,
+	latitude: 41.505493,
+	longitude: -81.681290,
 });
 
 function buildCurrentUrl(latitude, longitude) {
@@ -63,6 +63,44 @@ function requestJSON(url) {
 	});
 }
 
+function requestCoordinates() {
+	if (USE_TEST_LOCATION) {
+		return Promise.resolve({
+			latitude: TEST_LOCATION.latitude,
+			longitude: TEST_LOCATION.longitude,
+		});
+	}
+
+	return new Promise(function(resolve, reject) {
+		if (!navigator || !navigator.geolocation || !navigator.geolocation.getCurrentPosition) {
+			reject(new Error("Geolocation unavailable"));
+			return;
+		}
+
+		navigator.geolocation.getCurrentPosition(
+			function(position) {
+				if (!position || !position.coords) {
+					reject(new Error("Geolocation returned no coordinates"));
+					return;
+				}
+
+				resolve({
+					latitude: position.coords.latitude,
+					longitude: position.coords.longitude,
+				});
+			},
+			function(error) {
+				reject(new Error("Geolocation failed: " + JSON.stringify(error)));
+			},
+			{
+				enableHighAccuracy: false,
+				timeout: 15000,
+				maximumAge: 300000,
+			}
+		);
+	});
+}
+
 function sendPayload(payload) {
 	Pebble.sendAppMessage(payload,
 		function() { console.log("pkjs weather payload sent"); },
@@ -71,18 +109,12 @@ function sendPayload(payload) {
 }
 
 function fetchAndSendWeather() {
-	var latitude = USE_TEST_LOCATION ? TEST_LOCATION.latitude : null;
-	var longitude = USE_TEST_LOCATION ? TEST_LOCATION.longitude : null;
-
-	if (latitude === null || longitude === null) {
-		sendPayload({ WEATHER_ERROR: 1 });
-		return;
-	}
-
-	var weatherUrl = buildCurrentUrl(latitude, longitude);
-	console.log("pkjs weather url: " + weatherUrl);
-
-	requestJSON(weatherUrl)
+	requestCoordinates()
+		.then(function(coords) {
+			var weatherUrl = buildCurrentUrl(coords.latitude, coords.longitude);
+			console.log("pkjs weather url: " + weatherUrl);
+			return requestJSON(weatherUrl);
+		})
 		.then(function(weatherData) {
 			if (!weatherData || !weatherData.current || !weatherData.hourly || !weatherData.hourly.precipitation_probability || !weatherData.daily || !weatherData.daily.sunrise || !weatherData.daily.sunset || !weatherData.daily.temperature_2m_min || !weatherData.daily.temperature_2m_max) {
 				sendPayload({ WEATHER_ERROR: 2 });
@@ -112,7 +144,7 @@ function fetchAndSendWeather() {
 		})
 		.catch(function(e) {
 			console.log("pkjs weather fetch failed: " + e);
-			sendPayload({ WEATHER_ERROR: 3 });
+			sendPayload({ WEATHER_ERROR: 1 });
 		});
 }
 
