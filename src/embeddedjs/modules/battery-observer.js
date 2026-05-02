@@ -18,57 +18,57 @@
  */
 
 import Battery from "embedded:sensor/Battery";
+import LazyObserver from "modules/lazy-observer";
 
-let sensor = null;
-let sample = null;
-const observers = [];
+class BatteryObserver extends LazyObserver {
+	constructor() {
+		super();
+		this.lastPercent = -1;
+		this.lastCharging = undefined;
+	}
 
-function publish(nextSample) {
-	sample = nextSample;
-	observers.slice().forEach(observer => observer(nextSample));
+	publishIfChanged(sample) {
+		const percent = Math.round(sample.percent);
+		const charging = !!sample.charging;
+
+		if (percent === this.lastPercent && charging === this.lastCharging)
+			return;
+
+		this.lastPercent = percent;
+		this.lastCharging = charging;
+		this.publish(sample);
+	}
+
+	onStart() {
+		const observer = this;
+		this.sensor = new Battery({
+			onSample() {
+				observer.publishIfChanged(this.sample());
+			},
+		});
+
+		this.publishIfChanged(this.sensor.sample());
+	}
+
+	onStop() {
+		if (this.sensor) {
+			this.sensor.close();
+			this.sensor = null;
+		}
+
+		this.lastPercent = -1;
+		this.lastCharging = undefined;
+	}
 }
 
-function start() {
-	if (sensor)
-		return;
+const batteryObserver = new BatteryObserver();
 
-	sensor = new Battery({
-		onSample() {
-			publish(this.sample());
-		},
-	});
-
-	publish(sensor.sample());
-}
-
-function stop() {
-	if (!sensor)
-		return;
-
-	sensor.close();
-	sensor = null;
-	sample = null;
-}
+Object.freeze(BatteryObserver);
 
 export function observeBattery(observer) {
-	if (observers.indexOf(observer) < 0)
-		observers.push(observer);
-
-	start();
-
-	if (sample)
-		observer(sample);
-
-	return function unobserveBattery() {
-		const index = observers.indexOf(observer);
-		if (index >= 0)
-			observers.splice(index, 1);
-
-		if (!observers.length)
-			stop();
-	};
+	return batteryObserver.observe(observer);
 }
 
 export function getBatterySample() {
-	return sample;
+	return batteryObserver.value;
 }
