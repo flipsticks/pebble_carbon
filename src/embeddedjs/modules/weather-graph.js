@@ -128,7 +128,13 @@ class WeatherGraphBehavior extends Behavior {
 		if (!temps || temps.length === 0)
 			return;
 
-		const pointCount = Math.min(24, temps.length);
+		// Use 25 points: current temp at x=0 plus 24 hourly forecast points.
+		// This aligns points to precip-bar boundaries and touches both edges.
+		const lineTemps = [sample.temperature];
+		for (let i = 0; i < 24; i++) {
+			lineTemps.push(i < temps.length ? temps[i] : sample.temperature);
+		}
+		const pointCount = 25;
 		const fallbackTemp = Number.isFinite(sample.temperature) ? sample.temperature : 0;
 		const low = Number.isFinite(sample.temperatureLow) ? sample.temperatureLow : fallbackTemp;
 		const high = Number.isFinite(sample.temperatureHigh) ? sample.temperatureHigh : fallbackTemp;
@@ -142,11 +148,11 @@ class WeatherGraphBehavior extends Behavior {
 		let lastY = -1;
 
 		for (let i = 0; i < pointCount; i++) {
-			const temp = temps[i];
+			const temp = lineTemps[i];
 			const value = Number.isFinite(temp) ? temp : fallbackTemp;
 			const clamped = Math.max(tempMin, Math.min(tempMax, value));
 			const normalized = denom === 0 ? 0.5 : (clamped - tempMin) / denom;
-			const xPos = Math.floor(((i + 0.5) * graphWidth) / pointCount);
+			const xPos = Math.floor((i * graphWidth) / 24);
 			const xSafe = Math.max(0, Math.min(graphWidth - 1, xPos));
 			const yPos = lineBottom - Math.round(normalized * lineRange);
 			const ySafe = Math.max(lineTop, Math.min(lineBottom, yPos));
