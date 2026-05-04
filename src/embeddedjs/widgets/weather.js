@@ -39,10 +39,10 @@ function weatherIcon(sample, mode) {
 		return "\uF0F0"; // ellipsis
 
 	if (mode === "low")
-		return "\uF0BB"; // arrow-big-up-dash
+		return "\uF576"; // arrow-big-down-dash
 
 	if (mode === "high")
-		return "\uF576"; // arrow-big-down-dash
+		return "\uF0BB"; // arrow-big-up-dash
 
 	return getWeatherIcon(sample.weatherCode);
 }
