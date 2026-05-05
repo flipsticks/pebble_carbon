@@ -46,7 +46,7 @@
     }
   },
   "scripts": {
-    "clean": "rm -rf build",
+    "clean": "pebble clean",
     "gen-icon-ref": "node scripts/gen-icon-ref.js",
     "build": "pebble build",
     "build:dev": "ALLOY_INSTRUMENTATION=1 npm run build",
