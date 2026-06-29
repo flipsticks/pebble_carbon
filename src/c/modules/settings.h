@@ -17,6 +17,7 @@ typedef enum {
 	TOPLEFT_BATTERY_PCT = 1,  // battery percentage number
 	TOPLEFT_DATE_WEEKDAY = 2, // day-of-month over 2-letter weekday, e.g. 29/Mo
 	TOPLEFT_NONE = 3,         // blank
+	TOPLEFT_BATTERY_DAYS = 4, // estimated charge remaining, e.g. "3d" / "17h"
 } TopLeftContent;
 
 typedef struct {
@@ -28,6 +29,7 @@ typedef struct {
 	bool show_ampm;
 	// New fields appended below to preserve persisted-data compatibility.
 	bool show_city;
+	bool show_date;
 } Settings;
 
 void settings_init(void);

@@ -121,27 +121,28 @@ typedef struct {
 	uint8_t valid_hours;
 	int32_t
 	    fetch_offset_hours; // hours in the past the fetch occurred (0 = now)
+	uint16_t precip_total_tenths; // 24h total precip in tenths of a mm
 } DemoScenario;
 
 static const DemoScenario s_scenarios[6] = {
     // 1 — TEMPERATE: May 28, 10am, current=67°F, high=73, low=54
     {67, 73, 54, 1, 5, 19, s_temp_1, s_appar_1, s_precip_1, s_cloud_1, s_wmo_1,
-     "Chicago", "CDT", 24, 0},
+     "Chicago", "CDT", 24, 0, 8},
     // 2 — STORMY: Jul 15, 2pm, current=80°F, high=85, low=68
     {80, 85, 68, 80, 5, 20, s_temp_2, s_appar_2, s_precip_2, s_cloud_2, s_wmo_2,
-     "Chicago", "CDT", 24, 0},
+     "Chicago", "CDT", 24, 0, 224},
     // 3 — BLIZZARD: Jan 7, 8am, current=10°F, high=14, low=7
     {10, 14, 7, 73, 7, 16, s_temp_3, s_appar_3, s_precip_3, s_cloud_3, s_wmo_3,
-     "Chicago", "CST", 24, 0},
+     "Chicago", "CST", 24, 0, 132},
     // 4 — TORNADO: Apr 7, 11am, current=75°F, high=76, low=53
     {75, 76, 53, 65, 6, 19, s_temp_4, s_appar_4, s_precip_4, s_cloud_4, s_wmo_4,
-     "Chicago", "CDT", 24, 0},
+     "Chicago", "CDT", 24, 0, 176},
     // 5 — PARTIAL: same as temperate but only first 12 hours valid
     {67, 73, 54, 1, 5, 19, s_temp_1, s_appar_1, s_precip_1, s_cloud_1, s_wmo_1,
-     "Chicago", "CDT", 12, 0},
+     "Chicago", "CDT", 12, 0, 8},
     // 6 — DISCONNECTED: temperate data but fetch was 25h ago, fully expired
     {67, 73, 54, 1, 5, 19, s_temp_1, s_appar_1, s_precip_1, s_cloud_1, s_wmo_1,
-     "Chicago", "CDT", 24, 25},
+     "Chicago", "CDT", 24, 25, 8},
 };
 
 void demo_data_load(WeatherData *weather, Settings *settings) {
@@ -167,6 +168,7 @@ void demo_data_load(WeatherData *weather, Settings *settings) {
 	weather->is_valid = true;
 	weather->valid_hours = s->valid_hours;
 	weather->fetch_time = time(NULL) - (time_t)(s->fetch_offset_hours * 3600);
+	weather->precip_total_tenths = s->precip_total_tenths;
 
 	// Chicago uses Fahrenheit
 	if (settings) {

@@ -18,3 +18,5 @@ void precip_layer_destroy(PrecipLayer *layer);
 Layer *precip_layer_get_layer(PrecipLayer *layer);
 void precip_layer_set_data(PrecipLayer *layer, const uint8_t prob[24],
                            const uint8_t hourly_code[24], uint8_t current_hour);
+// Set the total forecast precipitation (tenths of a mm) for the 24h summary.
+void precip_layer_set_total(PrecipLayer *layer, uint16_t total_tenths);

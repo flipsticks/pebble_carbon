@@ -30,6 +30,14 @@ struct TimeLayer {
 	// each source character followed by a newline separator.
 	char tz_stacked[16];
 	char ampm_stacked[8];
+	// Side-column geometry, computed once in create().
+	int side_left_x;
+	int side_right_x;
+	int side_col_w;
+	int side_center_y;
+	// Container dimensions, for responsive re-layout in prv_relayout().
+	int frame_w;
+	int frame_h;
 };
 
 // Copy src into dst inserting a newline between each character so a TextLayer
@@ -42,6 +50,72 @@ static void prv_stack_vertical(const char *src, char *dst, size_t dst_len) {
 		dst[di++] = src[si];
 	}
 	dst[di] = '\0';
+}
+
+// Size a vertical side label to exactly fit its stacked text and re-center it on
+// the time digits, so longer abbreviations (e.g. "AEST") never get clipped.
+static void prv_position_side(TimeLayer *tl, TextLayer *lbl, const char *text,
+                              int x) {
+	GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
+	GSize sz = graphics_text_layout_get_content_size(
+	    text, font, GRect(0, 0, tl->side_col_w, 200),
+	    GTextOverflowModeWordWrap, GTextAlignmentCenter);
+	int h = sz.h > 0 ? sz.h : 1;
+	layer_set_frame(text_layer_get_layer(lbl),
+	                GRect(x, tl->side_center_y - h / 2, tl->side_col_w, h + 2));
+}
+
+// Re-flow the city / time / date stack so the visible elements are centered in
+// the block and the clock grows to fill space freed by hidden rows. The time
+// font tier is chosen by how many of {city, date} are shown (2/1/0). Also
+// updates side_center_y so the vertical TZ/AM-PM columns track the digits.
+static void prv_relayout(TimeLayer *tl, bool show_city, bool show_date) {
+	int n = (show_city ? 1 : 0) + (show_date ? 1 : 0);
+	const char *font_key;
+	int time_h, time_pad;
+	if (n >= 2) {
+		font_key = TL_TIME_FONT_KEY2;
+		time_h = TL_TIME_H2;
+		time_pad = TL_TIME_PAD2;
+	} else if (n == 1) {
+		font_key = TL_TIME_FONT_KEY1;
+		time_h = TL_TIME_H1;
+		time_pad = TL_TIME_PAD1;
+	} else {
+		font_key = TL_TIME_FONT_KEY0;
+		time_h = TL_TIME_H0;
+		time_pad = TL_TIME_PAD0;
+	}
+
+	int w = tl->frame_w;
+	int time_vis_h = time_h - time_pad; // visible digit band
+	int city_vh = show_city ? TL_SMALL_H : 0;
+	int date_vh = show_date ? TL_SMALL_H : 0;
+	int total = city_vh + time_vis_h + date_vh;
+	int y = (tl->frame_h - total) / 2;
+	if (y < 0)
+		y = 0;
+
+	layer_set_hidden(text_layer_get_layer(tl->city_label), !show_city);
+	if (show_city) {
+		layer_set_frame(text_layer_get_layer(tl->city_label),
+		                GRect(0, y, w, TL_SMALL_H));
+		y += TL_SMALL_H;
+	}
+
+	int time_vis_top = y;
+	text_layer_set_font(tl->time_label, fonts_get_system_font(font_key));
+	layer_set_frame(text_layer_get_layer(tl->time_label),
+	                GRect(0, time_vis_top - time_pad, w, time_h));
+	y += time_vis_h;
+
+	layer_set_hidden(text_layer_get_layer(tl->date_label), !show_date);
+	if (show_date) {
+		layer_set_frame(text_layer_get_layer(tl->date_label),
+		                GRect(0, y, w, TL_SMALL_H));
+	}
+
+	tl->side_center_y = time_vis_top + time_vis_h / 2;
 }
 
 static void prv_remove_leading_zero(char *buf, size_t len) {
@@ -73,6 +147,8 @@ TimeLayer *time_layer_create(GRect frame) {
 
 	tl->container = layer_create(frame);
 	int w = frame.size.w;
+	tl->frame_w = frame.size.w;
+	tl->frame_h = frame.size.h;
 
 	// City name — top, small font, full width centered
 	GFont city_font = fonts_get_system_font(TL_SMALL_FONT_KEY);
@@ -100,16 +176,17 @@ TimeLayer *time_layer_create(GRect frame) {
 	layer_add_child(tl->container, text_layer_get_layer(tl->time_label));
 
 	// Timezone & AM/PM — vertical stacked-letter columns flanking the time. Each
-	// is one glyph wide and spans the visible digit height, centered, so the
-	// letters read top-to-bottom down each edge. The internal font padding above
-	// the digits is skipped so the columns align with the visible digits.
+	// is one glyph wide; the column is auto-sized to its text and centered on the
+	// visible digits (see prv_position_side) so longer abbreviations like "AEST"
+	// are never clipped.
 	GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
-	int side_y = time_y + TL_TIME_PAD;
-	int side_h = TL_TIME_H - TL_TIME_PAD;
+	tl->side_col_w = TL_SIDE_COL_W;
+	tl->side_left_x = 2;
+	tl->side_right_x = w - 2 - TL_SIDE_COL_W;
+	tl->side_center_y = TL_SMALL_H + (TL_TIME_H - TL_TIME_PAD) / 2;
 
 	// Timezone — left edge
-	tl->tz_label =
-	    text_layer_create(GRect(2, side_y, TL_SIDE_COL_W, side_h));
+	tl->tz_label = text_layer_create(GRect(tl->side_left_x, 0, TL_SIDE_COL_W, 1));
 	text_layer_set_background_color(tl->tz_label, GColorClear);
 	text_layer_set_text_color(tl->tz_label, GColorLightGray);
 	text_layer_set_font(tl->tz_label, small_font);
@@ -118,8 +195,8 @@ TimeLayer *time_layer_create(GRect frame) {
 	layer_add_child(tl->container, text_layer_get_layer(tl->tz_label));
 
 	// AM/PM — right edge
-	tl->ampm_label = text_layer_create(
-	    GRect(w - 2 - TL_SIDE_COL_W, side_y, TL_SIDE_COL_W, side_h));
+	tl->ampm_label =
+	    text_layer_create(GRect(tl->side_right_x, 0, TL_SIDE_COL_W, 1));
 	text_layer_set_background_color(tl->ampm_label, GColorClear);
 	text_layer_set_text_color(tl->ampm_label, GColorLightGray);
 	text_layer_set_font(tl->ampm_label, small_font);
@@ -167,6 +244,8 @@ void time_layer_set_timezone(TimeLayer *layer, const char *tz) {
 	                                         : layer->tz_buf,
 	                   layer->tz_stacked, sizeof(layer->tz_stacked));
 	text_layer_set_text(layer->tz_label, layer->tz_stacked);
+	prv_position_side(layer, layer->tz_label, layer->tz_stacked,
+	                  layer->side_left_x);
 }
 
 void time_layer_set_city(TimeLayer *layer, const char *city) {
@@ -182,9 +261,9 @@ void time_layer_update(TimeLayer *layer, struct tm *tick_time,
 	if (!layer || !tick_time || !settings)
 		return;
 
-	// City label visibility follows the show_city setting.
-	layer_set_hidden(text_layer_get_layer(layer->city_label),
-	                 !settings->show_city);
+	// Re-flow the city / time / date stack for the current visibility, growing
+	// the clock into any space freed by hidden rows.
+	prv_relayout(layer, settings->show_city, settings->show_date);
 
 	bool is_24h = clock_is_24h_style();
 
@@ -209,6 +288,8 @@ void time_layer_update(TimeLayer *layer, struct tm *tick_time,
 	prv_stack_vertical(layer->ampm_buf, layer->ampm_stacked,
 	                   sizeof(layer->ampm_stacked));
 	text_layer_set_text(layer->ampm_label, layer->ampm_stacked);
+	prv_position_side(layer, layer->ampm_label, layer->ampm_stacked,
+	                  layer->side_right_x);
 	layer_set_hidden(text_layer_get_layer(layer->ampm_label),
 	                 !settings->show_ampm);
 
@@ -225,6 +306,8 @@ void time_layer_update(TimeLayer *layer, struct tm *tick_time,
 		                   sizeof(layer->tz_stacked));
 	}
 	text_layer_set_text(layer->tz_label, layer->tz_stacked);
+	prv_position_side(layer, layer->tz_label, layer->tz_stacked,
+	                  layer->side_left_x);
 	layer_set_hidden(text_layer_get_layer(layer->tz_label),
 	                 !settings->show_timezone);
 

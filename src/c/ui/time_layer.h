@@ -20,17 +20,37 @@
 #define TL_SMALL_FONT_KEY FONT_KEY_GOTHIC_18
 #define TL_SMALL_H 22
 #endif
-// LECO_60 on emery (>=228px); LECO_36_BOLD everywhere else.
-// TL_TIME_PAD is the internal top gap measured from each font's line metrics.
+// Time-font tiers, chosen by how many of {city, date} are visible so the clock
+// fills the freed space: TIER2 = both shown (default), TIER1 = one hidden,
+// TIER0 = both hidden. TL_TIME_PAD* is each font's internal top gap (the empty
+// band above the digits), measured from its line metrics.
+// LECO_60 on emery (>=228px) is already the largest numbers font, so its tiers
+// share one size and only re-center.
 #if PBL_DISPLAY_HEIGHT >= 228
-#define TL_TIME_FONT_KEY FONT_KEY_LECO_60_NUMBERS_AM_PM
-#define TL_TIME_H 62
-#define TL_TIME_PAD 14
+#define TL_TIME_FONT_KEY2 FONT_KEY_LECO_60_NUMBERS_AM_PM
+#define TL_TIME_H2 62
+#define TL_TIME_PAD2 14
+#define TL_TIME_FONT_KEY1 TL_TIME_FONT_KEY2
+#define TL_TIME_H1 TL_TIME_H2
+#define TL_TIME_PAD1 TL_TIME_PAD2
+#define TL_TIME_FONT_KEY0 TL_TIME_FONT_KEY2
+#define TL_TIME_H0 TL_TIME_H2
+#define TL_TIME_PAD0 TL_TIME_PAD2
 #else
-#define TL_TIME_FONT_KEY FONT_KEY_LECO_36_BOLD_NUMBERS
-#define TL_TIME_H 40
-#define TL_TIME_PAD 4
+#define TL_TIME_FONT_KEY2 FONT_KEY_LECO_36_BOLD_NUMBERS
+#define TL_TIME_H2 40
+#define TL_TIME_PAD2 4
+#define TL_TIME_FONT_KEY1 FONT_KEY_LECO_38_BOLD_NUMBERS
+#define TL_TIME_H1 43
+#define TL_TIME_PAD1 4
+#define TL_TIME_FONT_KEY0 FONT_KEY_LECO_42_NUMBERS
+#define TL_TIME_H0 48
+#define TL_TIME_PAD0 6
 #endif
+// Default tier (both rows visible) — used for create() and block sizing.
+#define TL_TIME_FONT_KEY TL_TIME_FONT_KEY2
+#define TL_TIME_H TL_TIME_H2
+#define TL_TIME_PAD TL_TIME_PAD2
 // Height of the TZ / AM-PM labels (GOTHIC_14, constant across platforms)
 #define TL_TZ_H 18
 // Width of the vertical (stacked-letter) TZ / AM-PM side columns. One GOTHIC_14

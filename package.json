@@ -36,6 +36,7 @@
       "WEATHER_TEMP_LOW",
       "WEATHER_CODE",
       "WEATHER_PRECIP_PROB",
+      "WEATHER_PRECIP_TOTAL",
       "WEATHER_TEMP_HOURLY",
       "WEATHER_APPARENT_TEMP_HOURLY",
       "WEATHER_CLOUD_COVER",
@@ -50,7 +51,8 @@
       "SETTING_BATTERY_DISPLAY",
       "SETTING_SHOW_TIMEZONE",
       "SETTING_SHOW_AMPM",
-      "SETTING_SHOW_CITY"
+      "SETTING_SHOW_CITY",
+      "SETTING_SHOW_DATE"
     ],
     "resources": {
       "media": [

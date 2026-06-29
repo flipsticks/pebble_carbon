@@ -232,6 +232,7 @@ function sendToWatch(payload) {
 	if (payload.sunrise_hour != null) dict['WEATHER_SUNRISE_HOUR'] = payload.sunrise_hour;
 	if (payload.sunset_hour  != null) dict['WEATHER_SUNSET_HOUR']  = payload.sunset_hour;
 	if (payload.fetch_time   != null) dict['WEATHER_FETCH_TIME']   = Math.floor(payload.fetch_time);
+	if (payload.precip_total_tenths != null) dict['WEATHER_PRECIP_TOTAL'] = payload.precip_total_tenths;
 
 	Pebble.sendAppMessage(dict,
 		function() { console.log('Carbon: weather sent to watch'); },
@@ -280,7 +281,7 @@ function fetchAndSend(lat, lon) {
 		'?latitude='  + lat +
 		'&longitude=' + lon +
 		'&current=temperature_2m,weather_code' +
-		'&hourly=precipitation_probability,temperature_2m,apparent_temperature,cloud_cover,weather_code' +
+		'&hourly=precipitation_probability,precipitation,temperature_2m,apparent_temperature,cloud_cover,weather_code' +
 		'&forecast_hours=24' +
 		'&daily=sunrise,sunset,temperature_2m_min,temperature_2m_max' +
 		'&forecast_days=1' +
@@ -317,6 +318,15 @@ function fetchAndSend(lat, lon) {
 				payload.apparent_temp_hourly  = hrly.apparent_temperature      || [];
 				payload.cloud_cover           = hrly.cloud_cover               || [];
 				payload.hourly_weather_code   = hrly.weather_code              || [];
+
+				// Total precipitation (mm) over the 24h window, stored in tenths
+				// of a mm so it transports as a small integer.
+				var precipMm = hrly.precipitation || [];
+				var precipSum = 0;
+				for (var pi = 0; pi < precipMm.length && pi < 24; pi++) {
+					precipSum += (precipMm[pi] || 0);
+				}
+				payload.precip_total_tenths = Math.round(precipSum * 10);
 			}
 
 			// Record the real origin time so the watch can compute how many
@@ -473,6 +483,9 @@ Pebble.addEventListener('webviewclosed', function(e) {
 
 	var showCity = extractBool(rawSettings['SETTING_SHOW_CITY']);
 	if (showCity !== null) dict['SETTING_SHOW_CITY'] = showCity;
+
+	var showDate = extractBool(rawSettings['SETTING_SHOW_DATE']);
+	if (showDate !== null) dict['SETTING_SHOW_DATE'] = showDate;
 
 	var showTimezone = extractBool(rawSettings['SETTING_SHOW_TIMEZONE']);
 	if (showTimezone !== null) dict['SETTING_SHOW_TIMEZONE'] = showTimezone;

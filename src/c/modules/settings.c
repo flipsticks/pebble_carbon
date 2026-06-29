@@ -23,6 +23,7 @@ static const Settings s_defaults = {
     .show_timezone = true,
     .show_ampm = true,
     .show_city = true,
+    .show_date = true,
 };
 
 void settings_init(void) {
@@ -70,7 +71,7 @@ void settings_apply_from_message(DictionaryIterator *iter) {
 	t = dict_find(iter, MESSAGE_KEY_SETTING_BATTERY_DISPLAY);
 	if (t) {
 		int tl = (int)t->value->int8;
-		if (tl >= 0 && tl <= TOPLEFT_NONE) {
+		if (tl >= 0 && tl <= TOPLEFT_BATTERY_DAYS) {
 			s_settings.topleft_content = (TopLeftContent)tl;
 		}
 	}
@@ -86,6 +87,10 @@ void settings_apply_from_message(DictionaryIterator *iter) {
 	t = dict_find(iter, MESSAGE_KEY_SETTING_SHOW_CITY);
 	if (t)
 		s_settings.show_city = (t->value->int8 != 0);
+
+	t = dict_find(iter, MESSAGE_KEY_SETTING_SHOW_DATE);
+	if (t)
+		s_settings.show_date = (t->value->int8 != 0);
 
 	settings_save();
 }

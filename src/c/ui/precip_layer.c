@@ -10,6 +10,7 @@
 #include "precip_layer.h"
 #include "graph_common.h"
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 struct PrecipLayer {
@@ -17,6 +18,7 @@ struct PrecipLayer {
 	uint8_t prob[GRAPH_HOURS];
 	uint8_t hourly_code[GRAPH_HOURS];
 	uint8_t current_hour;
+	uint16_t total_tenths; // total forecast precip over 24h, in tenths of a mm
 };
 
 // Categorize a WMO code for bar coloring.
@@ -127,6 +129,42 @@ static void prv_update_proc(Layer *layer, GContext *ctx) {
 #endif
 		graphics_fill_rect(ctx, GRect(x0, 0, bar_w, bar_h), 0, GCornerNone);
 	}
+
+	// 24h summary, bottom-right: peak chance of precip and total accumulation.
+	// e.g. "70% 2.4mm". Drawn over a black backing so it stays legible against
+	// the bars. Hidden entirely when there's no precip in the window.
+	uint8_t max_prob = 0;
+	for (int i = 0; i < GRAPH_HOURS; i++) {
+		if (pl->prob[i] > max_prob)
+			max_prob = pl->prob[i];
+	}
+	if (max_prob > 0 || pl->total_tenths > 0) {
+		char buf[16];
+		snprintf(buf, sizeof(buf), "%d%% %d.%dmm", max_prob,
+		         pl->total_tenths / 10, pl->total_tenths % 10);
+		GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
+		GSize sz = graphics_text_layout_get_content_size(
+		    buf, font, GRect(0, 0, graph_w, 20), GTextOverflowModeTrailingEllipsis,
+		    GTextAlignmentRight);
+		int tw = sz.w + 3;
+		int tx = bounds.size.w - tw;
+		// Dithered backing — a 50% black checkerboard rather than a solid fill, so
+		// the precip bars stay visible through the gaps (the display has no real
+		// alpha). Darkens the region just enough for the white text to read.
+		graphics_context_set_stroke_color(ctx, GColorBlack);
+		for (int yy = 0; yy < layer_h; yy++) {
+			for (int xx = tx; xx < bounds.size.w; xx++) {
+				if (((xx + yy) & 1) == 0)
+					graphics_draw_pixel(ctx, GPoint(xx, yy));
+			}
+		}
+		graphics_context_set_text_color(ctx, GColorWhite);
+		// GOTHIC_14 carries internal top leading; nudge up so digits sit centered
+		// within the short band.
+		graphics_draw_text(ctx, buf, font, GRect(tx, layer_h - 15, tw, 18),
+		                   GTextOverflowModeTrailingEllipsis, GTextAlignmentRight,
+		                   NULL);
+	}
 }
 
 PrecipLayer *precip_layer_create(GRect frame) {
@@ -136,6 +174,7 @@ PrecipLayer *precip_layer_create(GRect frame) {
 	memset(pl->prob, 0, sizeof(pl->prob));
 	memset(pl->hourly_code, 0, sizeof(pl->hourly_code));
 	pl->current_hour = 0;
+	pl->total_tenths = 0;
 
 	pl->layer = layer_create_with_data(frame, sizeof(PrecipLayer *));
 	*(PrecipLayer **)layer_get_data(pl->layer) = pl;
@@ -162,5 +201,12 @@ void precip_layer_set_data(PrecipLayer *layer, const uint8_t prob[24],
 	memcpy(layer->prob, prob, GRAPH_HOURS);
 	memcpy(layer->hourly_code, hourly_code, GRAPH_HOURS);
 	layer->current_hour = current_hour;
+	layer_mark_dirty(layer->layer);
+}
+
+void precip_layer_set_total(PrecipLayer *layer, uint16_t total_tenths) {
+	if (!layer)
+		return;
+	layer->total_tenths = total_tenths;
 	layer_mark_dirty(layer->layer);
 }

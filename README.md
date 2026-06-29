@@ -17,22 +17,67 @@ There are several other weather-focused Pebble watchfaces that might look simila
 - The current location and timezone.
 - Current temperature and high/low for the day.
 - 24-hour temperature graph with secondary apparent temperature line.
-- 24-hour precipitation probability graph with cloud cover.
+- 24-hour precipitation probability graph with cloud cover, plus a 24h summary of peak chance and total accumulation.
 - Daylight indicator with sunrise and sunset times.
 - Moon phase on the midnight indicator.
 - Current weather condition icon.
-- Battery level and charging status.
+- Battery level and charging status, with an optional estimated-days-remaining readout.
 - Bluetooth disconnect indicator.
 - Respects system 12/24-hour time format.
 - Temperature unit detection based on locale (defaults to Celsius, but Fahrenheit if you're in the US).
+
+## Display anatomy
+
+From top to bottom, the watchface packs a 24-hour outlook above the clock and a
+temperature graph below it. Every graph reads left-to-right as the **next 24
+hours**, with the left edge being the current hour.
+
+1. **Daylight line** (top) — a thin timeline of the next 24h. The solid segment
+   is daytime (sunrise→sunset); short vertical ticks mark the exact sun times,
+   while a sparse 3-dot dither means the time is approximate. A solid circle
+   rides the line at the **noon** position, and a **moon-phase** circle at
+   midnight (dark = new moon, solid = full, partially filled = crescent/gibbous
+   from the lit side).
+2. **Cloud cover** — little cloud puffs at each hour; bigger/denser puffs mean
+   more cloud cover (nothing below ~15% = clear). On color watches, storm hours
+   render grey and blizzard hours light-blue.
+3. **Precipitation graph** — one vertical bar per hour, where bar height is the
+   chance of precipitation. On color watches the bar color encodes the type
+   (blue rain shades, grey/white snow, etc.). The bottom-right shows a 24h
+   summary — **peak chance + total accumulation** (e.g. `70% 2.4mm`) — over a
+   dithered backing so the bars stay visible behind it.
+4. **Event strip** — warning icons over notable spans: ⚡ thunderstorm,
+   ❄ heavy snow, 🌪 tornado. Empty in calm weather.
+5. **Icon bar** (reserved left column, overlaid on the three graphs above) —
+   three stacked slots: a **configurable** top slot (battery icon / battery % /
+   date + weekday / estimated battery days / none), a **connection** slot
+   (bluetooth-off or stale-weather icon), and the current **weather condition**
+   icon (day or night variant).
+6. **Time block** (vertically centered) — the optional city name, the large
+   clock (color-customizable), flanked by the vertical timezone (left) and
+   AM/PM-or-24h indicator (right), with the date below. Hiding the city and/or
+   date lets the clock — and the remaining row — grow to fill the freed space.
+7. **Temperature panel** (bottom) — left column shows the day's high, the large
+   **current** temperature, and the low. To the right is a temperature
+   **sparkline** (current + 24 hourly) with a second "feels-like" line on the
+   same scale, tinted by temperature on color watches, with noon/midnight ticks
+   aligned to the graphs above.
 
 ## Settings
 
 - Temperature unit: Auto (default), Celsius, or Fahrenheit
 - Date format: "Monday, 1/15" default, several other presets (please open an issue if your preferred date format isn't available)
-- Battery indicator: Icon (default), Percentage, or Off
+- Accent color: color of the clock digits (white by default)
+- Top-left slot: Battery icon (default), Battery %, Date + weekday, Battery days left, or None
+- Show City Name: On (default) or Off — hiding it lets the clock and date grow
+- Show Date: On (default) or Off — hiding it lets the clock grow
 - Show Timezone: On (default) or Off
 - Show AM/PM / 24h Indicator: On (default) or Off
+
+The "Battery days left" option shows an estimate of remaining runtime — whole
+days (`3d`) until under a day, then hours (`17h`). The Pebble SDK only exposes
+the current charge percentage, so the estimate is derived from the observed
+discharge rate and improves as it learns your usage.
 
 ## To do
 
@@ -41,7 +86,8 @@ There are several other weather-focused Pebble watchfaces that might look simila
 - [ ] Custom date format string
 - [x] Customize battery indicator (e.g. show percentage instead of icon)
 - [x] Customize temperature unit
-- [ ] Customize color scheme (e.g. light mode, accent colors)
+- [x] Accent color for the clock digits
+- [ ] Customize color scheme (e.g. light mode)
 - [x] Localization (system locale)
 - [ ] Custom locale support
 - [ ] Bluetooth disconnect vibration

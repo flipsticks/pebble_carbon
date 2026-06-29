@@ -9,8 +9,10 @@
 
 #include "icon_bar_layer.h"
 #include "../generated/icons.h"
+#include "../modules/battery_est.h"
 #include "graph_common.h"
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 struct IconBarLayer {
@@ -121,7 +123,7 @@ static void prv_update_proc(Layer *layer, GContext *ctx) {
 	case TOPLEFT_DATE_WEEKDAY: {
 		// Two stacked centered lines: day-of-month over 2-letter weekday.
 		GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
-		char day_buf[4];
+		char day_buf[8];
 		snprintf(day_buf, sizeof(day_buf), "%d", sl->mday);
 		int line_h = 14;
 		int y0 = (zone_h - 2 * line_h) / 2;
@@ -131,6 +133,28 @@ static void prv_update_proc(Layer *layer, GContext *ctx) {
 		                   GTextAlignmentCenter, NULL);
 		graphics_draw_text(ctx, sl->weekday, small_font,
 		                   GRect(0, y0 + line_h, graph_x, line_h + 4),
+		                   GTextOverflowModeTrailingEllipsis,
+		                   GTextAlignmentCenter, NULL);
+		break;
+	}
+	case TOPLEFT_BATTERY_DAYS: {
+		// Estimated charge remaining: whole days ("3d") until under a day, then
+		// hours ("17h"). "chg" while charging, "--" before an estimate exists.
+		char buf[12];
+		if (sl->battery_charging) {
+			snprintf(buf, sizeof(buf), "chg");
+		} else {
+			int32_t secs = battery_est_seconds_remaining();
+			if (secs < 0)
+				snprintf(buf, sizeof(buf), "--");
+			else if (secs >= 86400)
+				snprintf(buf, sizeof(buf), "%dd", (int)(secs / 86400));
+			else
+				snprintf(buf, sizeof(buf), "%dh", (int)(secs / 3600));
+		}
+		GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
+		int y0 = (zone_h - 14) / 2;
+		graphics_draw_text(ctx, buf, small_font, GRect(0, y0, graph_x, 18),
 		                   GTextOverflowModeTrailingEllipsis,
 		                   GTextAlignmentCenter, NULL);
 		break;

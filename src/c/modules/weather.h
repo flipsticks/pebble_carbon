@@ -49,6 +49,9 @@ typedef struct {
   bool is_valid;
   time_t  fetch_time;   // unix timestamp of last successful fetch
   uint8_t valid_hours;  // hourly entries valid starting from fetch_time (0-24)
+  // Total forecast precipitation over the fetched 24h window, in tenths of a mm
+  // (e.g. 24 == 2.4 mm). New trailing field — keep last for persist compat.
+  uint16_t precip_total_tenths;
 } WeatherData;
 
 /**

@@ -7,6 +7,7 @@
  * @link      https://cr0ybot.com/project/pebble-watchface-carbon
  */
 
+#include "modules/battery_est.h"
 #include "modules/demo.h"
 #include "modules/settings.h"
 #include "modules/weather.h"
@@ -173,6 +174,7 @@ static void prv_push_weather_to_layers(struct tm *now) {
 	                        s_weather.sunset_hour, current_hour, false, false);
 	cloud_layer_set_data(s_cloud_layer, cloud_view, code_view, current_hour);
 	precip_layer_set_data(s_precip_layer, precip_view, code_view, current_hour);
+	precip_layer_set_total(s_precip_layer, s_weather.precip_total_tenths);
 	event_layer_set_data(s_event_layer, code_view, hours_remaining);
 	icon_bar_layer_set_condition(s_icon_bar_layer,
 	                             weather_code_to_condition(display_code));
@@ -242,6 +244,10 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
 		memcpy(s_weather.precip_prob, t->value->data, 24);
 	}
 
+	t = dict_find(iter, MESSAGE_KEY_WEATHER_PRECIP_TOTAL);
+	if (t)
+		s_weather.precip_total_tenths = (uint16_t)t->value->int32;
+
 	t = dict_find(iter, MESSAGE_KEY_WEATHER_TEMP_HOURLY);
 	if (t && t->type == TUPLE_BYTE_ARRAY && t->length >= 24) {
 		memcpy(s_weather.temp_hourly, t->value->data, 24);
@@ -307,6 +313,7 @@ static void prv_request_weather(void) {
 }
 
 static void prv_battery_handler(BatteryChargeState state) {
+	battery_est_update(state);
 	icon_bar_layer_notify_battery(s_icon_bar_layer, state);
 }
 
@@ -397,6 +404,7 @@ static void prv_window_unload(Window *window) {
 static void init(void) {
 	setlocale(LC_ALL, ""); // Use watch system locale for date formatting
 	settings_init();
+	battery_est_init();
 
 	// Restore persisted weather before anything renders
 	memset(&s_weather, 0, sizeof(s_weather));
