@@ -65,57 +65,106 @@ static void prv_position_side(TimeLayer *tl, TextLayer *lbl, const char *text,
 	                GRect(x, tl->side_center_y - h / 2, tl->side_col_w, h + 2));
 }
 
-// Re-flow the city / time / date stack so the visible elements are centered in
-// the block and the clock grows to fill space freed by hidden rows. The time
-// font tier is chosen by how many of {city, date} are shown (2/1/0). Also
-// updates side_center_y so the vertical TZ/AM-PM columns track the digits.
-static void prv_relayout(TimeLayer *tl, bool show_city, bool show_date) {
-	int n = (show_city ? 1 : 0) + (show_date ? 1 : 0);
-	const char *font_key;
-	int time_h, time_pad;
-	if (n >= 2) {
-		font_key = TL_TIME_FONT_KEY2;
-		time_h = TL_TIME_H2;
-		time_pad = TL_TIME_PAD2;
-	} else if (n == 1) {
-		font_key = TL_TIME_FONT_KEY1;
-		time_h = TL_TIME_H1;
-		time_pad = TL_TIME_PAD1;
-	} else {
-		font_key = TL_TIME_FONT_KEY0;
-		time_h = TL_TIME_H0;
-		time_pad = TL_TIME_PAD0;
+// Clock font ladder, largest first. `pad` is the font's internal top gap (the
+// empty band above the digit ink), used to vertically center the visible digits
+// rather than the full line box.
+typedef struct {
+	const char *key;
+	int pad;
+} TimeFont;
+static const TimeFont s_time_ladder[] = {
+#if PBL_DISPLAY_HEIGHT >= 228
+    // LECO_60 is only bundled on emery-class displays.
+    {FONT_KEY_LECO_60_NUMBERS_AM_PM, 14},
+#endif
+    // ROBOTO_BOLD_SUBSET_49 (digits + colon) is the largest clock font available
+    // on every platform — the big-fill option on 144px watches.
+    {FONT_KEY_ROBOTO_BOLD_SUBSET_49, 8}, {FONT_KEY_LECO_42_NUMBERS, 6},
+    {FONT_KEY_LECO_38_BOLD_NUMBERS, 4},  {FONT_KEY_LECO_36_BOLD_NUMBERS, 4},
+    {FONT_KEY_LECO_32_BOLD_NUMBERS, 4},
+};
+#define TIME_LADDER_N (sizeof(s_time_ladder) / sizeof(s_time_ladder[0]))
+
+static GSize prv_measure_time(GFont font) {
+	return graphics_text_layout_get_content_size(
+	    "00:00", font, GRect(0, 0, 1000, 1000), GTextOverflowModeWordWrap,
+	    GTextAlignmentCenter);
+}
+
+// Reproduce the original tight layout used when city, time and date are all
+// shown ("leave as is"): city flush top, date directly below the digits.
+static void prv_layout_default(TimeLayer *tl) {
+	int w = tl->frame_w;
+	text_layer_set_font(tl->time_label, fonts_get_system_font(TL_TIME_FONT_KEY));
+	layer_set_hidden(text_layer_get_layer(tl->city_label), false);
+	layer_set_hidden(text_layer_get_layer(tl->date_label), false);
+	layer_set_frame(text_layer_get_layer(tl->city_label),
+	                GRect(0, 0, w, TL_SMALL_H));
+	int time_y = TL_SMALL_H - TL_TIME_PAD;
+	layer_set_frame(text_layer_get_layer(tl->time_label),
+	                GRect(0, time_y, w, TL_TIME_H));
+	layer_set_frame(text_layer_get_layer(tl->date_label),
+	                GRect(0, time_y + TL_TIME_H, w, TL_SMALL_H));
+	tl->side_center_y = TL_SMALL_H + (TL_TIME_H - TL_TIME_PAD) / 2;
+}
+
+// Re-flow the city / time / date stack so the clock grows to fill space freed
+// by hidden rows. The box available to the digits grows vertically as city/date
+// are hidden and horizontally as the TZ / AM-PM side columns are hidden; the
+// largest font that fits that box is chosen so the clock visibly fills the
+// space. Also updates side_center_y so the vertical side columns track the
+// digits.
+static void prv_relayout(TimeLayer *tl, bool show_city, bool show_date,
+                         bool show_tz, bool show_ampm) {
+	if (show_city && show_date) {
+		prv_layout_default(tl);
+		return;
 	}
 
 	int w = tl->frame_w;
-	int time_vis_h = time_h - time_pad; // visible digit band
+	// Reserve horizontal room for the side columns only when either is shown;
+	// reserve symmetrically so the centered clock clears whichever side is up.
+	int reserve = (show_tz || show_ampm) ? (tl->side_col_w + 2) : 2;
+	int avail_w = w - 2 * reserve;
 	int city_vh = show_city ? TL_SMALL_H : 0;
 	int date_vh = show_date ? TL_SMALL_H : 0;
-	int total = city_vh + time_vis_h + date_vh;
-	int y = (tl->frame_h - total) / 2;
-	if (y < 0)
-		y = 0;
+	int avail_h = tl->frame_h - city_vh - date_vh; // vertical band for digits
+
+	// Largest font whose visible digit box fits the available width and height.
+	int sel = TIME_LADDER_N - 1;
+	for (unsigned i = 0; i < TIME_LADDER_N; i++) {
+		GFont f = fonts_get_system_font(s_time_ladder[i].key);
+		GSize sz = prv_measure_time(f);
+		int visible_h = sz.h - s_time_ladder[i].pad;
+		if (sz.w <= avail_w && visible_h <= avail_h) {
+			sel = i;
+			break;
+		}
+	}
+	const TimeFont *tf = &s_time_ladder[sel];
+	GFont font = fonts_get_system_font(tf->key);
+	GSize sz = prv_measure_time(font);
+	int visible_h = sz.h - tf->pad;
+
+	// Centre the visible digits in the band between any top city / bottom date.
+	int band_center = city_vh + avail_h / 2;
+	int frame_top = band_center - tf->pad - visible_h / 2;
+
+	text_layer_set_font(tl->time_label, font);
+	layer_set_frame(text_layer_get_layer(tl->time_label),
+	                GRect(0, frame_top, w, sz.h + 4));
 
 	layer_set_hidden(text_layer_get_layer(tl->city_label), !show_city);
-	if (show_city) {
+	if (show_city)
 		layer_set_frame(text_layer_get_layer(tl->city_label),
-		                GRect(0, y, w, TL_SMALL_H));
-		y += TL_SMALL_H;
-	}
-
-	int time_vis_top = y;
-	text_layer_set_font(tl->time_label, fonts_get_system_font(font_key));
-	layer_set_frame(text_layer_get_layer(tl->time_label),
-	                GRect(0, time_vis_top - time_pad, w, time_h));
-	y += time_vis_h;
+		                GRect(0, 0, w, TL_SMALL_H));
 
 	layer_set_hidden(text_layer_get_layer(tl->date_label), !show_date);
-	if (show_date) {
+	if (show_date)
 		layer_set_frame(text_layer_get_layer(tl->date_label),
-		                GRect(0, y, w, TL_SMALL_H));
-	}
+		                GRect(0, tl->frame_h - TL_SMALL_H, w, TL_SMALL_H));
 
-	tl->side_center_y = time_vis_top + time_vis_h / 2;
+	tl->side_center_y = band_center;
 }
 
 static void prv_remove_leading_zero(char *buf, size_t len) {
@@ -262,8 +311,9 @@ void time_layer_update(TimeLayer *layer, struct tm *tick_time,
 		return;
 
 	// Re-flow the city / time / date stack for the current visibility, growing
-	// the clock into any space freed by hidden rows.
-	prv_relayout(layer, settings->show_city, settings->show_date);
+	// the clock into any space freed by hidden rows or side columns.
+	prv_relayout(layer, settings->show_city, settings->show_date,
+	             settings->show_timezone, settings->show_ampm);
 
 	bool is_24h = clock_is_24h_style();
 
