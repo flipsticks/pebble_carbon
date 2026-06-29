@@ -16,9 +16,15 @@
 #if PBL_DISPLAY_HEIGHT <= 168
 #define TL_SMALL_FONT_KEY FONT_KEY_GOTHIC_14
 #define TL_SMALL_H 16
+// Enlarged city/date used in fill mode (when a row is hidden) so the remaining
+// secondary text grows along with the clock.
+#define TL_SMALL_BIG_FONT_KEY FONT_KEY_GOTHIC_24_BOLD
+#define TL_SMALL_BIG_H 28
 #else
 #define TL_SMALL_FONT_KEY FONT_KEY_GOTHIC_18
 #define TL_SMALL_H 22
+#define TL_SMALL_BIG_FONT_KEY FONT_KEY_GOTHIC_28_BOLD
+#define TL_SMALL_BIG_H 34
 #endif
 // Time-font tiers, chosen by how many of {city, date} are visible so the clock
 // fills the freed space: TIER2 = both shown (default), TIER1 = one hidden,

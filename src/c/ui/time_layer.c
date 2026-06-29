@@ -38,6 +38,10 @@ struct TimeLayer {
 	// Container dimensions, for responsive re-layout in prv_relayout().
 	int frame_w;
 	int frame_h;
+	// Custom large clock fonts (Fira Sans Condensed Bold), loaded once. Used in
+	// fill mode to grow the clock beyond the system-font ceiling.
+	GFont clock_big; // CARBON_CLOCK_66
+	GFont clock_mid; // CARBON_CLOCK_54
 };
 
 // Copy src into dst inserting a newline between each character so a TextLayer
@@ -65,25 +69,12 @@ static void prv_position_side(TimeLayer *tl, TextLayer *lbl, const char *text,
 	                GRect(x, tl->side_center_y - h / 2, tl->side_col_w, h + 2));
 }
 
-// Clock font ladder, largest first. `pad` is the font's internal top gap (the
-// empty band above the digit ink), used to vertically center the visible digits
-// rather than the full line box.
+// One rung of the clock font ladder: a resolved font plus its internal top gap
+// (the empty band above the digit ink, used to centre the visible digits).
 typedef struct {
-	const char *key;
+	GFont font;
 	int pad;
 } TimeFont;
-static const TimeFont s_time_ladder[] = {
-#if PBL_DISPLAY_HEIGHT >= 228
-    // LECO_60 is only bundled on emery-class displays.
-    {FONT_KEY_LECO_60_NUMBERS_AM_PM, 14},
-#endif
-    // ROBOTO_BOLD_SUBSET_49 (digits + colon) is the largest clock font available
-    // on every platform — the big-fill option on 144px watches.
-    {FONT_KEY_ROBOTO_BOLD_SUBSET_49, 8}, {FONT_KEY_LECO_42_NUMBERS, 6},
-    {FONT_KEY_LECO_38_BOLD_NUMBERS, 4},  {FONT_KEY_LECO_36_BOLD_NUMBERS, 4},
-    {FONT_KEY_LECO_32_BOLD_NUMBERS, 4},
-};
-#define TIME_LADDER_N (sizeof(s_time_ladder) / sizeof(s_time_ladder[0]))
 
 static GSize prv_measure_time(GFont font) {
 	return graphics_text_layout_get_content_size(
@@ -91,29 +82,59 @@ static GSize prv_measure_time(GFont font) {
 	    GTextAlignmentCenter);
 }
 
+// Build the clock font ladder largest-first into `out`, returning the count.
+// The custom Fira Condensed fonts sit on top (bigger than any system font),
+// then the system LECO/Roboto numerals.
+static int prv_build_ladder(TimeLayer *tl, TimeFont *out, int cap) {
+	int n = 0;
+	out[n++] = (TimeFont){tl->clock_big, 12}; // CARBON_CLOCK_56
+	out[n++] = (TimeFont){tl->clock_mid, 10}; // CARBON_CLOCK_46
+#if PBL_DISPLAY_HEIGHT >= 228
+	out[n++] =
+	    (TimeFont){fonts_get_system_font(FONT_KEY_LECO_60_NUMBERS_AM_PM), 14};
+#endif
+	out[n++] =
+	    (TimeFont){fonts_get_system_font(FONT_KEY_ROBOTO_BOLD_SUBSET_49), 8};
+	out[n++] = (TimeFont){fonts_get_system_font(FONT_KEY_LECO_42_NUMBERS), 6};
+	out[n++] = (TimeFont){fonts_get_system_font(FONT_KEY_LECO_38_BOLD_NUMBERS), 4};
+	out[n++] = (TimeFont){fonts_get_system_font(FONT_KEY_LECO_36_BOLD_NUMBERS), 4};
+	out[n++] = (TimeFont){fonts_get_system_font(FONT_KEY_LECO_32_BOLD_NUMBERS), 4};
+	(void)cap;
+	return n;
+}
+
 // Reproduce the original tight layout used when city, time and date are all
 // shown ("leave as is"): city flush top, date directly below the digits.
+// Centred within the (possibly taller) container so its screen position is
+// unchanged from the original fixed block.
 static void prv_layout_default(TimeLayer *tl) {
 	int w = tl->frame_w;
+	int off = (tl->frame_h - TL_TIME_BLOCK_H) / 2;
+	if (off < 0)
+		off = 0;
 	text_layer_set_font(tl->time_label, fonts_get_system_font(TL_TIME_FONT_KEY));
+	text_layer_set_font(tl->city_label,
+	                    fonts_get_system_font(TL_SMALL_FONT_KEY));
+	text_layer_set_font(tl->date_label,
+	                    fonts_get_system_font(TL_SMALL_FONT_KEY));
 	layer_set_hidden(text_layer_get_layer(tl->city_label), false);
 	layer_set_hidden(text_layer_get_layer(tl->date_label), false);
 	layer_set_frame(text_layer_get_layer(tl->city_label),
-	                GRect(0, 0, w, TL_SMALL_H));
-	int time_y = TL_SMALL_H - TL_TIME_PAD;
+	                GRect(0, off, w, TL_SMALL_H));
+	int time_y = off + TL_SMALL_H - TL_TIME_PAD;
 	layer_set_frame(text_layer_get_layer(tl->time_label),
 	                GRect(0, time_y, w, TL_TIME_H));
 	layer_set_frame(text_layer_get_layer(tl->date_label),
 	                GRect(0, time_y + TL_TIME_H, w, TL_SMALL_H));
-	tl->side_center_y = TL_SMALL_H + (TL_TIME_H - TL_TIME_PAD) / 2;
+	tl->side_center_y = off + TL_SMALL_H + (TL_TIME_H - TL_TIME_PAD) / 2;
 }
 
-// Re-flow the city / time / date stack so the clock grows to fill space freed
-// by hidden rows. The box available to the digits grows vertically as city/date
-// are hidden and horizontally as the TZ / AM-PM side columns are hidden; the
-// largest font that fits that box is chosen so the clock visibly fills the
-// space. Also updates side_center_y so the vertical side columns track the
-// digits.
+// Re-flow the city / time / date stack so the clock — and the remaining
+// secondary row — grow to fill space freed by hidden rows. The box available to
+// the digits grows vertically as city/date are hidden and horizontally as the
+// TZ / AM-PM side columns are hidden; the largest font that fits that box is
+// chosen. The visible secondary row uses an enlarged font too. Also updates
+// side_center_y so the vertical side columns track the digits.
 static void prv_relayout(TimeLayer *tl, bool show_city, bool show_date,
                          bool show_tz, bool show_ampm) {
 	if (show_city && show_date) {
@@ -127,43 +148,51 @@ static void prv_relayout(TimeLayer *tl, bool show_city, bool show_date,
 	// so reserving exactly the column width lets the digits run right up to them.
 	int reserve = (show_tz || show_ampm) ? tl->side_col_w : 1;
 	int avail_w = w - 2 * reserve;
-	int city_vh = show_city ? TL_SMALL_H : 0;
-	int date_vh = show_date ? TL_SMALL_H : 0;
+	// Enlarged secondary rows (the remaining city or date) grow with the clock.
+	int city_vh = show_city ? TL_SMALL_BIG_H : 0;
+	int date_vh = show_date ? TL_SMALL_BIG_H : 0;
 	int avail_h = tl->frame_h - city_vh - date_vh; // vertical band for digits
 
+	TimeFont ladder[10];
+	int ladder_n = prv_build_ladder(tl, ladder, 10);
+
 	// Largest font whose visible digit box fits the available width and height.
-	int sel = TIME_LADDER_N - 1;
-	for (unsigned i = 0; i < TIME_LADDER_N; i++) {
-		GFont f = fonts_get_system_font(s_time_ladder[i].key);
-		GSize sz = prv_measure_time(f);
-		int visible_h = sz.h - s_time_ladder[i].pad;
+	int sel = ladder_n - 1;
+	for (int i = 0; i < ladder_n; i++) {
+		GSize sz = prv_measure_time(ladder[i].font);
+		int visible_h = sz.h - ladder[i].pad;
 		if (sz.w <= avail_w && visible_h <= avail_h) {
 			sel = i;
 			break;
 		}
 	}
-	const TimeFont *tf = &s_time_ladder[sel];
-	GFont font = fonts_get_system_font(tf->key);
+	GFont font = ladder[sel].font;
+	int pad = ladder[sel].pad;
 	GSize sz = prv_measure_time(font);
-	int visible_h = sz.h - tf->pad;
+	int visible_h = sz.h - pad;
 
 	// Centre the visible digits in the band between any top city / bottom date.
 	int band_center = city_vh + avail_h / 2;
-	int frame_top = band_center - tf->pad - visible_h / 2;
+	int frame_top = band_center - pad - visible_h / 2;
 
 	text_layer_set_font(tl->time_label, font);
 	layer_set_frame(text_layer_get_layer(tl->time_label),
 	                GRect(0, frame_top, w, sz.h + 4));
 
+	GFont sec_font = fonts_get_system_font(TL_SMALL_BIG_FONT_KEY);
 	layer_set_hidden(text_layer_get_layer(tl->city_label), !show_city);
-	if (show_city)
+	if (show_city) {
+		text_layer_set_font(tl->city_label, sec_font);
 		layer_set_frame(text_layer_get_layer(tl->city_label),
-		                GRect(0, 0, w, TL_SMALL_H));
+		                GRect(0, 0, w, TL_SMALL_BIG_H));
+	}
 
 	layer_set_hidden(text_layer_get_layer(tl->date_label), !show_date);
-	if (show_date)
+	if (show_date) {
+		text_layer_set_font(tl->date_label, sec_font);
 		layer_set_frame(text_layer_get_layer(tl->date_label),
-		                GRect(0, tl->frame_h - TL_SMALL_H, w, TL_SMALL_H));
+		                GRect(0, tl->frame_h - TL_SMALL_BIG_H, w, TL_SMALL_BIG_H));
+	}
 
 	tl->side_center_y = band_center;
 }
@@ -199,6 +228,12 @@ TimeLayer *time_layer_create(GRect frame) {
 	int w = frame.size.w;
 	tl->frame_w = frame.size.w;
 	tl->frame_h = frame.size.h;
+
+	// Custom large clock fonts for fill mode.
+	tl->clock_big = fonts_load_custom_font(
+	    resource_get_handle(RESOURCE_ID_CARBON_CLOCK_56));
+	tl->clock_mid = fonts_load_custom_font(
+	    resource_get_handle(RESOURCE_ID_CARBON_CLOCK_46));
 
 	// City name — top, small font, full width centered
 	GFont city_font = fonts_get_system_font(TL_SMALL_FONT_KEY);
@@ -271,6 +306,8 @@ TimeLayer *time_layer_create(GRect frame) {
 void time_layer_destroy(TimeLayer *layer) {
 	if (!layer)
 		return;
+	fonts_unload_custom_font(layer->clock_big);
+	fonts_unload_custom_font(layer->clock_mid);
 	text_layer_destroy(layer->date_label);
 	text_layer_destroy(layer->ampm_label);
 	text_layer_destroy(layer->tz_label);
