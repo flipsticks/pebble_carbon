@@ -457,8 +457,22 @@ Pebble.addEventListener('webviewclosed', function(e) {
 		dict['SETTING_DATE_FORMAT'] = dateFormat;
 	}
 
+	// Accent color — Clay's color component returns a hex string (with convert
+	// =false); parse to an integer for GColorFromHEX on the watch.
+	var rawAccent = rawSettings['SETTING_ACCENT_COLOR'];
+	var accentVal = (rawAccent !== null && typeof rawAccent === 'object' &&
+	                 'value' in rawAccent) ? rawAccent.value : rawAccent;
+	if (accentVal !== null && accentVal !== undefined) {
+		var accentInt = (typeof accentVal === 'number')
+			? accentVal : parseInt(accentVal, 16);
+		if (!isNaN(accentInt)) dict['SETTING_ACCENT_COLOR'] = accentInt;
+	}
+
 	var batteryDisplay = extractInt(rawSettings['SETTING_BATTERY_DISPLAY']);
 	if (!isNaN(batteryDisplay)) dict['SETTING_BATTERY_DISPLAY'] = batteryDisplay;
+
+	var showCity = extractBool(rawSettings['SETTING_SHOW_CITY']);
+	if (showCity !== null) dict['SETTING_SHOW_CITY'] = showCity;
 
 	var showTimezone = extractBool(rawSettings['SETTING_SHOW_TIMEZONE']);
 	if (showTimezone !== null) dict['SETTING_SHOW_TIMEZONE'] = showTimezone;

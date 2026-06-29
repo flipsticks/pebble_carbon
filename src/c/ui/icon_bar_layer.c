@@ -22,7 +22,9 @@ struct IconBarLayer {
 	WeatherCondition condition;
 	bool is_day;
 	bool weather_disconnected;
-	BatteryDisplay battery_display;
+	TopLeftContent topleft_content;
+	int mday;          // day-of-month for TOPLEFT_DATE_WEEKDAY
+	char weekday[4];   // 2-letter weekday abbreviation, e.g. "Mo"
 };
 
 static const char *prv_battery_icon(int pct, bool charging) {
@@ -102,8 +104,11 @@ static void prv_update_proc(Layer *layer, GContext *ctx) {
 	// Three equally-spaced icon slots: battery, bluetooth, weather condition
 	graphics_context_set_text_color(ctx, GColorWhite);
 
-	// Slot 0: battery (always shown)
-	if (sl->battery_display == BATTERY_DISPLAY_PERCENT) {
+	// Slot 0: configurable — battery icon / battery % / date+weekday / none
+	switch (sl->topleft_content) {
+	case TOPLEFT_NONE:
+		break;
+	case TOPLEFT_BATTERY_PCT: {
 		char pct_buf[5];
 		snprintf(pct_buf, sizeof(pct_buf), "%d", sl->battery_percent);
 		GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
@@ -111,12 +116,34 @@ static void prv_update_proc(Layer *layer, GContext *ctx) {
 		graphics_draw_text(ctx, pct_buf, small_font, GRect(0, y0, graph_x, 18),
 		                   GTextOverflowModeTrailingEllipsis,
 		                   GTextAlignmentCenter, NULL);
-	} else {
+		break;
+	}
+	case TOPLEFT_DATE_WEEKDAY: {
+		// Two stacked centered lines: day-of-month over 2-letter weekday.
+		GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
+		char day_buf[4];
+		snprintf(day_buf, sizeof(day_buf), "%d", sl->mday);
+		int line_h = 14;
+		int y0 = (zone_h - 2 * line_h) / 2;
+		graphics_draw_text(ctx, day_buf, small_font,
+		                   GRect(0, y0, graph_x, line_h + 4),
+		                   GTextOverflowModeTrailingEllipsis,
+		                   GTextAlignmentCenter, NULL);
+		graphics_draw_text(ctx, sl->weekday, small_font,
+		                   GRect(0, y0 + line_h, graph_x, line_h + 4),
+		                   GTextOverflowModeTrailingEllipsis,
+		                   GTextAlignmentCenter, NULL);
+		break;
+	}
+	case TOPLEFT_BATTERY_ICON:
+	default: {
 		int y0 = (zone_h - icon_size) / 2;
 		graphics_draw_text(
 		    ctx, prv_battery_icon(sl->battery_percent, sl->battery_charging),
 		    sl->icon_font, GRect(0, y0, graph_x, icon_size),
 		    GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+		break;
+	}
 	}
 
 	// Slot 1: connection status — BT disconnect takes priority; signal-off
@@ -156,7 +183,9 @@ IconBarLayer *icon_bar_layer_create(GRect frame) {
 	sl->condition = WEATHER_CONDITION_UNKNOWN;
 	sl->is_day = true;
 	sl->weather_disconnected = true; // shown until first weather fetch
-	sl->battery_display = BATTERY_DISPLAY_ICON;
+	sl->topleft_content = TOPLEFT_BATTERY_ICON;
+	sl->mday = 1;
+	sl->weekday[0] = '\0';
 
 #if PBL_DISPLAY_HEIGHT >= 228
 	sl->icon_font = fonts_load_custom_font(
@@ -225,10 +254,24 @@ void icon_bar_layer_set_disconnected(IconBarLayer *layer, bool disconnected) {
 	layer_mark_dirty(layer->layer);
 }
 
-void icon_bar_layer_set_battery_display(IconBarLayer *layer,
-                                        BatteryDisplay display) {
+void icon_bar_layer_set_topleft_content(IconBarLayer *layer,
+                                        TopLeftContent content) {
 	if (!layer)
 		return;
-	layer->battery_display = display;
+	layer->topleft_content = content;
+	layer_mark_dirty(layer->layer);
+}
+
+void icon_bar_layer_notify_time(IconBarLayer *layer, struct tm *tick_time) {
+	if (!layer || !tick_time)
+		return;
+	layer->mday = tick_time->tm_mday;
+	// 2-letter weekday abbreviation, e.g. "Mo". strftime("%a") yields a 3-letter
+	// abbreviation which we truncate to two characters.
+	char abbr[8];
+	strftime(abbr, sizeof(abbr), "%a", tick_time);
+	layer->weekday[0] = abbr[0];
+	layer->weekday[1] = abbr[1];
+	layer->weekday[2] = '\0';
 	layer_mark_dirty(layer->layer);
 }

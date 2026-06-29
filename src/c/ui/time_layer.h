@@ -33,6 +33,9 @@
 #endif
 // Height of the TZ / AM-PM labels (GOTHIC_14, constant across platforms)
 #define TL_TZ_H 18
+// Width of the vertical (stacked-letter) TZ / AM-PM side columns. One GOTHIC_14
+// glyph wide; the letters stack down the column flanking the time digits.
+#define TL_SIDE_COL_W 14
 // Total visible block height used by main.c to size the layer frame.
 // Derived automatically so it can never fall out of sync with the values above.
 #define TL_TIME_BLOCK_H ((TL_SMALL_H - TL_TIME_PAD) + TL_TIME_H + TL_SMALL_H)

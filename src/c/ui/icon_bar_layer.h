@@ -25,5 +25,7 @@ void icon_bar_layer_set_condition(IconBarLayer *layer,
                                   WeatherCondition condition);
 void icon_bar_layer_set_daytime(IconBarLayer *layer, bool is_day);
 void icon_bar_layer_set_disconnected(IconBarLayer *layer, bool disconnected);
-void icon_bar_layer_set_battery_display(IconBarLayer *layer,
-                                        BatteryDisplay display);
+void icon_bar_layer_set_topleft_content(IconBarLayer *layer,
+                                        TopLeftContent content);
+// Provide the current time so the top-left slot can show date / weekday.
+void icon_bar_layer_notify_time(IconBarLayer *layer, struct tm *tick_time);

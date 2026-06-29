@@ -19,9 +19,10 @@ static const Settings s_defaults = {
     .temp_unit_celsius = true,
     .date_format = "%A, %m/%d",
     .accent_color = {.argb = 0b11111111}, // GColorWhite
-    .battery_display = BATTERY_DISPLAY_ICON,
+    .topleft_content = TOPLEFT_BATTERY_ICON,
     .show_timezone = true,
     .show_ampm = true,
+    .show_city = true,
 };
 
 void settings_init(void) {
@@ -68,9 +69,9 @@ void settings_apply_from_message(DictionaryIterator *iter) {
 
 	t = dict_find(iter, MESSAGE_KEY_SETTING_BATTERY_DISPLAY);
 	if (t) {
-		int bd = (int)t->value->int8;
-		if (bd >= 0 && bd < 2) {
-			s_settings.battery_display = (BatteryDisplay)bd;
+		int tl = (int)t->value->int8;
+		if (tl >= 0 && tl <= TOPLEFT_NONE) {
+			s_settings.topleft_content = (TopLeftContent)tl;
 		}
 	}
 
@@ -81,6 +82,10 @@ void settings_apply_from_message(DictionaryIterator *iter) {
 	t = dict_find(iter, MESSAGE_KEY_SETTING_SHOW_AMPM);
 	if (t)
 		s_settings.show_ampm = (t->value->int8 != 0);
+
+	t = dict_find(iter, MESSAGE_KEY_SETTING_SHOW_CITY);
+	if (t)
+		s_settings.show_city = (t->value->int8 != 0);
 
 	settings_save();
 }

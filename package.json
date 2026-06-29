@@ -49,7 +49,8 @@
       "SETTING_ACCENT_COLOR",
       "SETTING_BATTERY_DISPLAY",
       "SETTING_SHOW_TIMEZONE",
-      "SETTING_SHOW_AMPM"
+      "SETTING_SHOW_AMPM",
+      "SETTING_SHOW_CITY"
     ],
     "resources": {
       "media": [

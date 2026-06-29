@@ -26,7 +26,23 @@ struct TimeLayer {
 	char tz_override[8]; // set by time_layer_set_timezone; overrides strftime
 	char ampm_buf[4];
 	char date_buf[32];
+	// Stacked-letter render buffers for the vertical side labels. Sized to hold
+	// each source character followed by a newline separator.
+	char tz_stacked[16];
+	char ampm_stacked[8];
 };
+
+// Copy src into dst inserting a newline between each character so a TextLayer
+// renders the text vertically (one glyph per line). e.g. "AEST" -> "A\nE\nS\nT".
+static void prv_stack_vertical(const char *src, char *dst, size_t dst_len) {
+	size_t di = 0;
+	for (size_t si = 0; src[si] && di + 2 < dst_len; si++) {
+		if (di > 0)
+			dst[di++] = '\n';
+		dst[di++] = src[si];
+	}
+	dst[di] = '\0';
+}
 
 static void prv_remove_leading_zero(char *buf, size_t len) {
 	bool prev_nondigit = true;
@@ -52,6 +68,8 @@ TimeLayer *time_layer_create(GRect frame) {
 	tl->tz_override[0] = '\0';
 	tl->ampm_buf[0] = '\0';
 	tl->date_buf[0] = '\0';
+	tl->tz_stacked[0] = '\0';
+	tl->ampm_stacked[0] = '\0';
 
 	tl->container = layer_create(frame);
 	int w = frame.size.w;
@@ -81,27 +99,32 @@ TimeLayer *time_layer_create(GRect frame) {
 	text_layer_set_text(tl->time_label, tl->time_buf);
 	layer_add_child(tl->container, text_layer_get_layer(tl->time_label));
 
-	// Timezone — small font, left side of time row
+	// Timezone & AM/PM — vertical stacked-letter columns flanking the time. Each
+	// is one glyph wide and spans the visible digit height, centered, so the
+	// letters read top-to-bottom down each edge. The internal font padding above
+	// the digits is skipped so the columns align with the visible digits.
 	GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
-	// Center TZ/AMPM label within the visible digit area, skipping internal
-	// font padding
-	int tz_ampm_y =
-	    time_y + TL_TIME_PAD + (TL_TIME_H - TL_TIME_PAD - TL_TZ_H) / 2;
-	tl->tz_label = text_layer_create(GRect(2, tz_ampm_y, 32, TL_TZ_H));
+	int side_y = time_y + TL_TIME_PAD;
+	int side_h = TL_TIME_H - TL_TIME_PAD;
+
+	// Timezone — left edge
+	tl->tz_label =
+	    text_layer_create(GRect(2, side_y, TL_SIDE_COL_W, side_h));
 	text_layer_set_background_color(tl->tz_label, GColorClear);
 	text_layer_set_text_color(tl->tz_label, GColorLightGray);
 	text_layer_set_font(tl->tz_label, small_font);
-	text_layer_set_text_alignment(tl->tz_label, GTextAlignmentLeft);
-	text_layer_set_text(tl->tz_label, tl->tz_buf);
+	text_layer_set_text_alignment(tl->tz_label, GTextAlignmentCenter);
+	text_layer_set_text(tl->tz_label, tl->tz_stacked);
 	layer_add_child(tl->container, text_layer_get_layer(tl->tz_label));
 
-	// AM/PM — small font, right side of time row
-	tl->ampm_label = text_layer_create(GRect(w - 34, tz_ampm_y, 32, TL_TZ_H));
+	// AM/PM — right edge
+	tl->ampm_label = text_layer_create(
+	    GRect(w - 2 - TL_SIDE_COL_W, side_y, TL_SIDE_COL_W, side_h));
 	text_layer_set_background_color(tl->ampm_label, GColorClear);
 	text_layer_set_text_color(tl->ampm_label, GColorLightGray);
 	text_layer_set_font(tl->ampm_label, small_font);
-	text_layer_set_text_alignment(tl->ampm_label, GTextAlignmentRight);
-	text_layer_set_text(tl->ampm_label, tl->ampm_buf);
+	text_layer_set_text_alignment(tl->ampm_label, GTextAlignmentCenter);
+	text_layer_set_text(tl->ampm_label, tl->ampm_stacked);
 	layer_add_child(tl->container, text_layer_get_layer(tl->ampm_label));
 
 	// Date — below time
@@ -140,9 +163,10 @@ void time_layer_set_timezone(TimeLayer *layer, const char *tz) {
 	strncpy(layer->tz_override, tz, sizeof(layer->tz_override) - 1);
 	layer->tz_override[sizeof(layer->tz_override) - 1] = '\0';
 	// Immediately update the label so it shows even before the next tick
-	text_layer_set_text(layer->tz_label, layer->tz_override[0]
-	                                         ? layer->tz_override
-	                                         : layer->tz_buf);
+	prv_stack_vertical(layer->tz_override[0] ? layer->tz_override
+	                                         : layer->tz_buf,
+	                   layer->tz_stacked, sizeof(layer->tz_stacked));
+	text_layer_set_text(layer->tz_label, layer->tz_stacked);
 }
 
 void time_layer_set_city(TimeLayer *layer, const char *city) {
@@ -157,6 +181,10 @@ void time_layer_update(TimeLayer *layer, struct tm *tick_time,
                        const Settings *settings) {
 	if (!layer || !tick_time || !settings)
 		return;
+
+	// City label visibility follows the show_city setting.
+	layer_set_hidden(text_layer_get_layer(layer->city_label),
+	                 !settings->show_city);
 
 	bool is_24h = clock_is_24h_style();
 
@@ -176,20 +204,27 @@ void time_layer_update(TimeLayer *layer, struct tm *tick_time,
 		strftime(layer->ampm_buf, sizeof(layer->ampm_buf), "%p", tick_time);
 	}
 	text_layer_set_text(layer->time_label, layer->time_buf);
-	text_layer_set_text(layer->ampm_label, layer->ampm_buf);
+	// Apply the accent color to the time digits (defaults to white).
+	text_layer_set_text_color(layer->time_label, settings->accent_color);
+	prv_stack_vertical(layer->ampm_buf, layer->ampm_stacked,
+	                   sizeof(layer->ampm_stacked));
+	text_layer_set_text(layer->ampm_label, layer->ampm_stacked);
 	layer_set_hidden(text_layer_get_layer(layer->ampm_label),
 	                 !settings->show_ampm);
 
 	// Timezone abbreviation — use manual override if set (e.g. demo mode),
 	// otherwise derive from strftime and hide numeric offsets or empty values.
 	if (layer->tz_override[0]) {
-		text_layer_set_text(layer->tz_label, layer->tz_override);
+		prv_stack_vertical(layer->tz_override, layer->tz_stacked,
+		                   sizeof(layer->tz_stacked));
 	} else {
 		strftime(layer->tz_buf, sizeof(layer->tz_buf), "%Z", tick_time);
 		bool tz_valid = (layer->tz_buf[0] >= 'A' && layer->tz_buf[0] <= 'Z') &&
 		                (layer->tz_buf[1] >= 'A' && layer->tz_buf[1] <= 'Z');
-		text_layer_set_text(layer->tz_label, tz_valid ? layer->tz_buf : "");
+		prv_stack_vertical(tz_valid ? layer->tz_buf : "", layer->tz_stacked,
+		                   sizeof(layer->tz_stacked));
 	}
+	text_layer_set_text(layer->tz_label, layer->tz_stacked);
 	layer_set_hidden(text_layer_get_layer(layer->tz_label),
 	                 !settings->show_timezone);
 

@@ -78,6 +78,7 @@ static void prv_tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 	(void)units_changed;
 #else
 	time_layer_update(s_time_layer, tick_time, settings_get());
+	icon_bar_layer_notify_time(s_icon_bar_layer, tick_time);
 
 	// Request fresh weather every hour and re-push cached data so that
 	// current_hour advances in all graph layers regardless of whether a new
@@ -196,8 +197,8 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
 	// Check for settings changes first
 	settings_apply_from_message(iter);
 	temp_layer_set_unit(s_temp_layer, settings_get()->temp_unit_celsius);
-	icon_bar_layer_set_battery_display(s_icon_bar_layer,
-	                                   settings_get()->battery_display);
+	icon_bar_layer_set_topleft_content(s_icon_bar_layer,
+	                                   settings_get()->topleft_content);
 	// Apply date format immediately rather than waiting for the next tick.
 	time_t now_s = time(NULL);
 	struct tm *now_stm = localtime(&now_s);
@@ -344,8 +345,8 @@ static void prv_window_load(Window *window) {
 	// Icon bar — overlaid on top of daylight/cloud/precip, owns the left column
 	s_icon_bar_layer = icon_bar_layer_create(GRect(0, 0, w, GRAPH_LAYERS_H));
 	layer_add_child(root, icon_bar_layer_get_layer(s_icon_bar_layer));
-	icon_bar_layer_set_battery_display(s_icon_bar_layer,
-	                                   settings_get()->battery_display);
+	icon_bar_layer_set_topleft_content(s_icon_bar_layer,
+	                                   settings_get()->topleft_content);
 
 	// Time block (city + time + date) — vertically centered on the screen
 	int time_y = (bounds.size.h - TL_TIME_BLOCK_H) / 2;
@@ -367,8 +368,10 @@ static void prv_window_load(Window *window) {
 	time_t now_t = time(NULL);
 	struct tm *now = localtime(&now_t);
 #endif
-	if (now)
+	if (now) {
 		time_layer_update(s_time_layer, now, settings_get());
+		icon_bar_layer_notify_time(s_icon_bar_layer, now);
+	}
 
 	// Restore cached weather if available
 	prv_push_weather_to_layers(now);
