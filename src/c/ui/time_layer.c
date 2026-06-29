@@ -122,9 +122,10 @@ static void prv_relayout(TimeLayer *tl, bool show_city, bool show_date,
 	}
 
 	int w = tl->frame_w;
-	// Reserve horizontal room for the side columns only when either is shown;
-	// reserve symmetrically so the centered clock clears whichever side is up.
-	int reserve = (show_tz || show_ampm) ? (tl->side_col_w + 2) : 2;
+	// Reserve horizontal room for the side columns only when either is shown.
+	// The columns are one glyph wide and hug the edges, and the clock is centred,
+	// so reserving exactly the column width lets the digits run right up to them.
+	int reserve = (show_tz || show_ampm) ? tl->side_col_w : 1;
 	int avail_w = w - 2 * reserve;
 	int city_vh = show_city ? TL_SMALL_H : 0;
 	int date_vh = show_date ? TL_SMALL_H : 0;
